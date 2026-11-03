@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pea Booth</title>
+  <meta name="description" content="A butterfly pea photobooth: take one photo, hide a message in acid ink, and let the recipient reveal it with pea-flower tea.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Caveat:wght@400;600&family=Sue+Ellen+Francisco&family=Pinyon+Script&family=Allura&family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..600;1,6..96,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Courier+Prime:ital@0;1&family=Jost:wght@300;400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-scene="outside">
+
+<!-- shared SVG filters: watercolor bleed + hand-drawn wobble -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <filter id="wobble" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="4" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="wash" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="3" seed="9" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="16" xChannelSelector="R" yChannelSelector="G" result="d"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.012 0.05" numOctaves="3" seed="2" result="blot"/>
+      <feColorMatrix in="blot" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -0.75 1.12" result="blotA"/>
+      <feComposite in="d" in2="blotA" operator="in"/>
+    </filter>
+    <filter id="paint" x="-5%" y="-10%" width="110%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="7" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="3.2" xChannelSelector="R" yChannelSelector="G" result="d"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" result="g"/>
+      <feColorMatrix in="g" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -0.9 1.15" result="gA"/>
+      <feComposite in="d" in2="gA" operator="in"/>
+    </filter>
+    <filter id="bloom-ink" x="-6%" y="-20%" width="112%" height="140%">
+      <!-- the revealed message: wobbly strokes, patchy pigment (some parts pale and see-through),
+           paper grain, and deeper pink pooled at the edges of each stroke -->
+      <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="7" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="3.2" xChannelSelector="R" yChannelSelector="G" result="d"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.014" numOctaves="3" seed="21" result="blot"/>
+      <feColorMatrix in="blot" type="matrix" values="0 0 0 0 1  0 0 0 0 .8  0 0 0 0 .9  1.1 0 0 0 0.3" result="blotA"/>
+      <feComposite in="d" in2="blotA" operator="in" result="patchy"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" result="g"/>
+      <feColorMatrix in="g" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -0.55 1.25" result="gA"/>
+      <feComposite in="patchy" in2="gA" operator="in" result="body"/>
+      <feMorphology in="d" operator="erode" radius="0.7" result="inner"/>
+      <feComposite in="d" in2="inner" operator="out" result="rim"/>
+      <feColorMatrix in="rim" type="matrix" values=".9 0 0 0 0  0 .55 0 0 0  0 0 .75 0 0  0 0 0 .6 0" result="rimDark"/>
+      <feMerge><feMergeNode in="body"/><feMergeNode in="rimDark"/></feMerge>
+    </filter>
+    <filter id="watercolor" x="-6%" y="-20%" width="112%" height="140%">
+      <feMorphology in="SourceGraphic" operator="dilate" radius="0.5" result="thick"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.028" numOctaves="3" seed="5" result="n"/>
+      <feDisplacementMap in="thick" in2="n" scale="3.4" xChannelSelector="R" yChannelSelector="G" result="wob"/>
+      <feMorphology in="wob" operator="erode" radius="0.6" result="inner"/>
+      <feComposite in="wob" in2="inner" operator="out" result="rim"/>
+      <feColorMatrix in="rim" type="matrix" values=".55 0 0 0 0  0 .55 0 0 0  0 0 .6 0 0  0 0 0 .5 0" result="rimDark"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="9" result="g"/>
+      <feColorMatrix in="g" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -0.75 1.2" result="gA"/>
+      <feComposite in="wob" in2="gA" operator="in" result="granular"/>
+      <feComponentTransfer in="granular" result="wash"><feFuncA type="linear" slope=".7"/></feComponentTransfer>
+      <feMerge><feMergeNode in="wash"/><feMergeNode in="rimDark"/></feMerge>
+    </filter>
+    <filter id="watercolor-light" x="-6%" y="-20%" width="112%" height="140%">
+      <feMorphology in="SourceGraphic" operator="dilate" radius="0.45" result="thick"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.028" numOctaves="3" seed="5" result="n"/>
+      <feDisplacementMap in="thick" in2="n" scale="3" xChannelSelector="R" yChannelSelector="G" result="wob"/>
+      <feMorphology in="wob" operator="erode" radius="0.6" result="inner"/>
+      <feComposite in="wob" in2="inner" operator="out" result="rim"/>
+      <feColorMatrix in="rim" type="matrix" values="1 0 0 0 0  0 .78 0 0 0  0 0 .9 0 0  0 0 0 .42 0" result="rimDark"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="9" result="g"/>
+      <feColorMatrix in="g" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -0.75 1.2" result="gA"/>
+      <feComposite in="wob" in2="gA" operator="in" result="granular"/>
+      <feComponentTransfer in="granular" result="wash"><feFuncA type="linear" slope=".7"/></feComponentTransfer>
+      <feMerge><feMergeNode in="wash"/><feMergeNode in="rimDark"/></feMerge>
+    </filter>
+    <!-- thinner watercolor for titles: no thickening, same uneven rim and granulation -->
+    <filter id="watercolor-thin" x="-6%" y="-20%" width="112%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.028" numOctaves="3" seed="5" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="2.6" xChannelSelector="R" yChannelSelector="G" result="wob"/>
+      <feMorphology in="wob" operator="erode" radius="0.45" result="inner"/>
+      <feComposite in="wob" in2="inner" operator="out" result="rim"/>
+      <feColorMatrix in="rim" type="matrix" values=".6 0 0 0 0  0 .6 0 0 0  0 0 .65 0 0  0 0 0 .55 0" result="rimDark"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="9" result="g"/>
+      <feColorMatrix in="g" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -0.75 1.2" result="gA"/>
+      <feComposite in="wob" in2="gA" operator="in" result="granular"/>
+      <feComponentTransfer in="granular" result="wash"><feFuncA type="linear" slope=".72"/></feComponentTransfer>
+      <feMerge><feMergeNode in="wash"/><feMergeNode in="rimDark"/></feMerge>
+    </filter>
+    <filter id="watercolor-thin-light" x="-6%" y="-20%" width="112%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.028" numOctaves="3" seed="5" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="2.6" xChannelSelector="R" yChannelSelector="G" result="wob"/>
+      <feMorphology in="wob" operator="erode" radius="0.45" result="inner"/>
+      <feComposite in="wob" in2="inner" operator="out" result="rim"/>
+      <feColorMatrix in="rim" type="matrix" values="1 0 0 0 0  0 .78 0 0 0  0 0 .9 0 0  0 0 0 .45 0" result="rimDark"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="9" result="g"/>
+      <feColorMatrix in="g" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -0.75 1.2" result="gA"/>
+      <feComposite in="wob" in2="gA" operator="in" result="granular"/>
+      <feComponentTransfer in="granular" result="wash"><feFuncA type="linear" slope=".98"/></feComponentTransfer>
+      <feMerge><feMergeNode in="wash"/><feMergeNode in="rimDark"/></feMerge>
+    </filter>
+    <filter id="bleed" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="3" seed="11" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="38" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+          <g id="peaFlower">
+            <path class="petal" d="M50 92 C20 88 6 62 10 40 C14 18 32 6 50 14 C68 6 86 18 90 40 C94 62 80 88 50 92Z"/>
+            <path class="eye" d="M50 84 C41 74 38 56 44 43 C47 37 53 37 56 43 C62 56 59 74 50 84Z"/>
+            <path class="vein" d="M50 22 V40 M34 26 C40 34 42 40 43 46 M66 26 C60 34 58 40 57 46 M22 44 C30 48 36 52 40 58 M78 44 C70 48 64 52 60 58"/>
+            <path class="stem" d="M50 92 C51 102 48 112 42 122"/>
+          </g>
+    <symbol id="postmark" viewBox="0 0 220 120">
+      <circle cx="60" cy="60" r="52" fill="none" stroke="currentColor" stroke-width="2.4"/>
+      <circle cx="60" cy="60" r="38" fill="none" stroke="currentColor" stroke-width="1.4"/>
+      <path id="pmArc" d="M18 60 A42 42 0 1 1 102 60" fill="none"/>
+      <text font-family="Jost, sans-serif" font-size="11" letter-spacing="3.2" fill="currentColor"><textPath href="#pmArc" startOffset="50%" text-anchor="middle">PEA BOOTH · STEEPED</textPath></text>
+      <text x="60" y="58" text-anchor="middle" font-family="Jost, sans-serif" font-size="13" letter-spacing="2" fill="currentColor">NOV</text>
+      <text x="60" y="76" text-anchor="middle" font-family="Jost, sans-serif" font-size="15" letter-spacing="1.5" fill="currentColor">2026</text>
+      <path d="M120 38 C140 32 160 44 180 38 S 205 34 218 38 M120 52 C140 46 160 58 180 52 S 205 48 218 52 M120 66 C140 60 160 72 180 66 S 205 62 218 66 M120 80 C140 74 160 86 180 80 S 205 76 218 80" fill="none" stroke="currentColor" stroke-width="2.2"/>
+    </symbol>
+    <symbol id="scribble" viewBox="0 0 240 14" preserveAspectRatio="none">
+      <path d="M2 9 C 30 3, 62 12, 96 7 S 160 3, 196 8 S 228 10, 238 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </symbol>
+    <linearGradient id="curtainFill" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#1b4596"/>
+      <stop offset=".09" stop-color="#3f70bf"/>
+      <stop offset=".18" stop-color="#1d4a9e"/>
+      <stop offset=".29" stop-color="#4b7bc6"/>
+      <stop offset=".4" stop-color="#21509f"/>
+      <stop offset=".52" stop-color="#5584cc"/>
+      <stop offset=".63" stop-color="#1f4c9c"/>
+      <stop offset=".75" stop-color="#4677c3"/>
+      <stop offset=".87" stop-color="#1c4697"/>
+      <stop offset="1" stop-color="#3a69b8"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <span class="cap tb-left">Studio · Butterfly Pea</span>
+  <a class="brand" href="#" data-go="outside">Pea Booth</a>
+  <button class="cap link-cap" type="button" data-go="process">The process</button>
+</header>
+
+<main>
+
+  <!-- ───────────── 1. outside the booth ───────────── -->
+  <section class="scene active" id="outside" aria-label="The photobooth">
+    <div class="photo-booth loading" id="photoBooth">
+      <div class="pb-frame" id="pbFrame">
+        <canvas id="boothCanvas" width="2000" height="848" aria-label="A photograph of a vintage photobooth standing in a sunlit white gallery"></canvas>
+        <button class="door-hit" id="curtainBtn" type="button" aria-label="Pull the curtain and step inside"><span class="door-glow"></span></button>
+        <button class="enter-tag" id="enterBtn" type="button"><span class="tag-main">Step inside</span></button>
+      </div>
+    </div>
+
+    <div class="landing">
+
+      <section class="invite">
+        <h1 class="display">A photograph, and a note that appears only once it is <em class="hi">steeped<svg aria-hidden="true"><use href="#scribble"/></svg></em>.</h1>
+        <p class="lede">Invisible ink, revealed with butterfly pea tea.</p>
+        <svg class="pm-mark" aria-hidden="true"><use href="#postmark"/></svg>
+      </section>
+
+      <section class="ritual-3 tone-blue" aria-label="How it works">
+        <article>
+          <div class="stamp-wrap" style="--tilt:-3deg"><div class="stamp"><img src="img/keepsakes/08.webp" alt="" loading="lazy"></div></div>
+          <h2 class="display-s">Sit for one photograph</h2>
+          <p class="note-hand">just one, make it count</p>
+        </article>
+        <article>
+          <div class="stamp-wrap" style="--tilt:2deg"><div class="stamp"><img src="img/keepsakes/06.webp" alt="" loading="lazy"></div></div>
+          <h2 class="display-s">Write in invisible ink</h2>
+          <p>The card arrives blank.</p>
+        </article>
+        <article>
+          <div class="stamp-wrap" style="--tilt:-1.5deg"><div class="stamp"><img src="img/keepsakes/02.webp" alt="" loading="lazy"></div></div>
+          <h2 class="display-s">Steep to reveal</h2>
+          <p>The words bloom <span class="bloom">pink</span>.</p>
+        </article>
+      </section>
+
+      <section class="collection">
+        <header class="sec-head">
+          <h2 class="display">Featured <em class="hi">keepsakes</em></h2>
+        </header>
+        <div class="line-wrap">
+          <ul class="samples" id="samples"></ul>
+        </div>
+      </section>
+
+      <section class="teaser">
+        <figure class="photo tilt-l"><img src="img/process/social-1.jpg" alt="Classmates’ hands painting acids onto pea-dyed paper" loading="lazy"></figure>
+        <div>
+          <h2 class="display">How it <em class="hi">developed</em></h2>
+          <button class="btn ghost" type="button" data-go="process">Read the process</button>
+        </div>
+      </section>
+
+      <section class="closing tone-blue">
+        <p class="script wc">let the light in</p>
+        <button class="btn" type="button" data-go="inside">Step inside the booth</button>
+      </section>
+
+      <footer class="foot">
+        <span class="cap">Pea Booth © 2026</span>
+        <a class="cap" href="#" id="toTop">Back to top ↑</a>
+      </footer>
+    </div>
+  </section>
+
+  <!-- ───────────── 2. inside the booth ───────────── -->
+  <section class="scene" id="inside" aria-label="Inside the booth">
+    <div class="booth-in">
+      <div class="panel">
+        <span class="rivet tl"></span><span class="rivet tr"></span><span class="rivet bl"></span><span class="rivet br"></span>
+
+        <div class="maker-plate"><span>Pea Booth</span><i>Photographs</i></div>
+
+        <div class="panel-grid">
+          <div class="cam-col">
+            <div class="lens" aria-hidden="true"><i></i></div>
+            <p class="engrave">look here</p>
+            <div class="bezel">
+              <div class="screen-inner">
+                <canvas id="live" width="480" height="600" aria-label="Live camera preview"></canvas>
+                <div class="screen-msg" id="screenMsg">
+                  <p class="big">waking the camera…</p>
+                  <p class="small">allow camera access when your browser asks</p>
+                </div>
+                <div class="count" id="count" aria-live="assertive"></div>
+                <div class="flash" id="flash"></div>
+                <span class="glass" aria-hidden="true"></span>
+              </div>
+            </div>
+
+            <fieldset class="jewels" id="toneSwitch">
+              <legend class="engrave">tone</legend>
+              <label><input type="radio" name="tone" value="cyano" checked><span class="jewel" style="--j:#3d72d6"></span><span class="engrave">cyanotype</span></label>
+              <label><input type="radio" name="tone" value="pea"><span class="jewel" style="--j:#7a5ad8"></span><span class="engrave">pea blue</span></label>
+              <label><input type="radio" name="tone" value="bloom"><span class="jewel" style="--j:#e0559e"></span><span class="engrave">acid bloom</span></label>
+            </fieldset>
+          </div>
+
+          <div class="ctrl-col">
+            <div class="card-instr">
+              <span class="tape" aria-hidden="true"></span>
+              <p class="ci-head">Instructions</p>
+              <ol>
+                <li>Choose a tone.</li>
+                <li>Press and hold still.</li>
+                <li>Write your hidden note.</li>
+              </ol>
+            </div>
+
+            <div class="press">
+              <span class="ready" id="led" aria-hidden="true"></span>
+              <p class="engrave">ready</p>
+              <button class="snap" id="snapBtn" type="button" disabled aria-label="Take photo"><span></span></button>
+              <p class="engrave">press</p>
+            </div>
+
+            <label class="upload">
+              <input type="file" accept="image/*" id="uploadInput">
+              <span>no camera? use a photo</span>
+            </label>
+
+            <p class="engrave slot-label">your print</p>
+            <div class="slot-real" aria-hidden="true"><i></i></div>
+            <div class="tray" id="tray">
+              <img id="printImg" alt="Your print">
+            </div>
+            <div class="print-actions" id="printActions">
+              <button class="btn ghost" id="retakeBtn" type="button">Retake</button>
+              <button class="btn" id="toWriteBtn" type="button">Write a message</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────────── 3. write the message ───────────── -->
+  <section class="scene" id="write" aria-label="Write your message">
+    <div class="write">
+      <div class="write-head">
+        <h1>Write in invisible ink</h1>
+        <p class="sub">It appears only in butterfly pea tea.</p>
+      </div>
+
+      <div class="write-grid">
+        <div class="preview-col">
+          <div class="card-back" id="backPreview">
+            <div class="wash-wrap"><div class="wash"></div></div>
+            <div class="cb-msg" id="cbMsg"><p id="cbText"></p><p class="cb-from" id="cbFrom"></p></div>
+            <div class="cb-divider"></div>
+            <div class="cb-stamp"><svg viewBox="0 0 100 124"><use href="#peaFlower"/></svg></div>
+            <div class="cb-lines">
+              <p class="cb-to"><span>to</span> <b id="cbTo"></b></p>
+              <i></i><i></i><i></i>
+            </div>
+            <p class="cb-hint">soak me in butterfly pea tea ↓</p>
+          </div>
+          <div class="ink-toggle" role="group" aria-label="Preview">
+            <button type="button" class="pill" data-ink="hidden">as printed</button>
+            <button type="button" class="pill on" data-ink="shown">while writing</button>
+            <button type="button" class="pill" data-ink="soak">soak it ✶</button>
+          </div>
+        </div>
+
+        <form class="form" id="msgForm" autocomplete="off">
+          <label class="field">
+            <span>to</span>
+            <input id="toInput" maxlength="40" placeholder="who is this for?">
+          </label>
+          <label class="field">
+            <span>message <em id="counter">0 / 220</em></span>
+            <textarea id="msgInput" maxlength="220" rows="6" placeholder="something you'd rather say slowly…"></textarea>
+          </label>
+          <label class="field">
+            <span>from</span>
+            <input id="fromInput" maxlength="40" placeholder="your name">
+          </label>
+          <fieldset class="field fonts">
+            <legend>handwriting</legend>
+            <label><input type="radio" name="font" value="hand" checked><span class="f-hand">hand</span></label>
+            <label><input type="radio" name="font" value="type"><span class="f-type">typewriter</span></label>
+            <label><input type="radio" name="font" value="serif"><span class="f-serif">letter</span></label>
+          </fieldset>
+          <div class="form-actions">
+            <button class="btn ghost" type="button" data-go="inside">← back to booth</button>
+            <button class="btn" type="submit">make my postcard →</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────────── 4. the keepsake ───────────── -->
+  <section class="scene" id="keep" aria-label="Your postcard">
+    <div class="keep">
+      <div class="write-head">
+        <h1>Your postcard</h1>
+        <p class="sub">Tap to flip.</p>
+      </div>
+
+      <div class="card3d" id="card3d" tabindex="0" role="button" aria-label="Flip postcard">
+        <div class="face front"><img id="frontImg" alt="Postcard front with your portrait, hidden in acid ink"><div class="front-soak"><img id="frontWash" alt=""><img id="frontBloom" alt=""></div></div>
+        <div class="face back">
+          <div class="card-back" id="backFinal">
+            <div class="wash-wrap"><div class="wash"></div></div>
+            <div class="cb-msg"><p class="t"></p><p class="cb-from f"></p></div>
+            <div class="cb-divider"></div>
+            <div class="cb-stamp"><svg viewBox="0 0 100 124"><use href="#peaFlower"/></svg></div>
+            <div class="cb-lines">
+              <p class="cb-to"><span>to</span> <b class="to"></b></p>
+              <i></i><i></i><i></i>
+            </div>
+            <p class="cb-hint">soak me in butterfly pea tea ↓</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="keep-actions">
+        <button class="btn" id="soakBtn" type="button">soak in pea tea ✶</button>
+        <button class="btn ghost" id="flipBtn" type="button">flip card</button>
+      </div>
+
+      <div class="ritual">
+        <div class="ritual-col">
+          <h2>print files</h2>
+          <ul class="dl">
+            <li><button class="link" data-dl="front">front.png</button><span>regular ink</span></li>
+            <li><button class="link" data-dl="frontAcid">front-acid-layer.png</button><span>acidic ink, over the front: the portrait</span></li>
+            <li><button class="link" data-dl="back">back.png</button><span>regular ink</span></li>
+            <li><button class="link" data-dl="acid">message-acid-layer.png</button><span>acidic ink, over the back</span></li>
+            <li><button class="link" data-dl="stencil">stencil-cut.png</button><span>laser cut: black stays, white is cut away. Brush the acid through it onto the front</span></li>
+          </ul>
+          <p class="note">6 × 4 in, 300 dpi. Align the corner crosses.</p>
+          <button class="btn ghost" id="printBtn" type="button">print all</button>
+        </div>
+        <div class="ritual-col">
+          <h2>how it reveals</h2>
+          <ol class="ritual-steps">
+            <li>Print front and back.</li>
+            <li>Print the back again in acidic ink.</li>
+            <li>Post it. It looks blank.</li>
+            <li>Soak in pea tea. The words turn pink.</li>
+          </ol>
+        </div>
+      </div>
+
+      <button class="btn ghost again" id="againBtn" type="button">← take another</button>
+    </div>
+  </section>
+  <!-- ───────────── 5. how it developed ───────────── -->
+  <section class="scene" id="process" aria-label="How it developed">
+    <div class="process">
+
+      <!-- title sheet -->
+      <article class="sheet pr-hero">
+        <span class="corner tl cap">Field notes</span>
+        <span class="corner tr cap">2026</span>
+        <span class="corner bl cap">Ashley · Chamonix · Christian</span>
+        <div class="pr-hero-art">
+          <figure class="pr-hero-photo cutout"><img src="img/process/cut/steeping.png" alt="Dried butterfly pea flowers steeping in a strainer over a bowl of blue tea"></figure>
+          <p class="pr-script wc" aria-hidden="true">the making of</p>
+        </div>
+        <h1 class="display pr-title">Blue tea, a postcard that <em class="hi">keeps a secret</em>.</h1>
+      </article>
+
+      <!-- I. the flower -->
+      <section class="chapter flower">
+        <header class="ch-head">
+          <p class="cap">The flower</p>
+          <h2 class="display">A blue that carries <em class="hi">memory</em></h2>
+        </header>
+
+        <div class="flower-grid">
+          <figure class="map-fig">
+            <svg class="bpf-map" viewBox="-40 0 880 560" role="img" aria-label="Map of South and Southeast Asia. Butterfly pea is traditionally grown and used in India, Sri Lanka, Myanmar, Thailand, Laos, Cambodia, Vietnam, Malaysia, Singapore, Indonesia, the Philippines and Brunei.">
+  <g class="m-ctx" filter="url(#wobble)"><path d="M74,512L74,512L73,512L73,511L72,510L73,510L73,511L74,512L74,512L74,511L74,511L74,510L73,510L74,510L74,510L74,511Z"/><path d="M765,532L767,529L778,526L787,525L791,524L796,525L791,529L778,535L767,539L766,534Z"/><path d="M723,83L715,106L709,118L703,106L701,95L709,81L719,70L725,74Z"/><path d="M92,-6L87,0L79,16L65,31L50,30L35,46L44,52L45,64L53,71L55,84L26,84L17,93L8,89L4,79L-6,68L-6,-6Z"/><path d="M194,-6L204,-2L217,8L224,10L229,18L239,21L250,27L265,30L280,32L280,32L279,38L281,48L279,54L268,54L252,50L242,49L235,41L217,40L199,31L187,24L174,18L179,4L188,-3L192,-6L194,-6Z"/><path d="M86,372L86,372L86,372L86,371L86,371L87,371L87,371L87,371ZM88,359L87,360L87,360L87,359L87,359L87,359L88,359L88,358L88,358L88,359L88,359L88,359Z"/><path d="M561,171L550,166L550,154L556,148L571,144L578,144L581,150L575,156L572,164ZM718,-6L719,-2L727,3L725,15L722,27L714,28L705,44L694,63L682,81L664,94L646,106L631,108L623,114L618,110L611,117L592,124L578,126L574,141L567,142L563,131L566,126L548,121L542,124L529,120L523,114L525,106L513,103L506,98L495,106L482,107L472,107L465,111L458,113L460,129L453,129L452,125L451,119L442,124L436,121L426,116L430,104L422,101L419,88L405,90L406,73L419,61L419,49L419,37L413,34L409,25L401,26L387,24L391,18L385,8L376,15L365,11L350,21L338,32L327,33L321,29L314,29L305,26L298,29L289,41L288,29L280,32L265,30L250,27L239,21L229,18L224,10L217,8L204,-2L194,-6L718,-6ZM192,-6L188,-3L182,-6L192,-6Z"/><path d="M614,115L614,114L614,114L614,114L615,114L615,114L614,114L614,115Z"/><path d="M621,110L621,110L621,110L622,109L622,109L623,109L624,109L624,110L624,110L624,110L624,111L625,111L625,112L624,112L624,113L624,113L622,112L621,112L620,112L619,112L619,111L621,110ZM624,114L623,115L622,113L622,113L623,113L624,114L624,114ZM621,114L619,114L619,114L618,114L619,113L621,113L621,113Z"/><path d="M640,342L639,349L638,357L632,357L629,362L623,355L629,350Z"/><path d="M327,33L332,38L331,47L321,48L310,47L301,49L289,43L289,41L298,29L305,26L314,29L321,29Z"/><path d="M340,117L340,127L335,125L336,136L332,129L331,122L329,115L323,106L311,106L312,112L308,120L303,117L301,119L297,118L292,117L290,105L285,94L288,85L279,81L282,76L291,71L281,63L286,53L296,59L302,60L304,70L316,72L328,72L336,75L330,87L324,88L320,96L327,103L329,94L333,94Z"/></g>
+  <g class="m-hi" filter="url(#wobble)"><path d="M490,277L490,277L490,279L489,281L490,281L489,282L488,279L487,278L487,277L488,277L489,276L489,276ZM541,124L541,124L539,124L538,126L537,126L535,127L534,127L533,129L533,130L533,131L531,132L530,132L529,131L529,132L528,132L528,132L527,132L526,132L525,132L525,131L524,131L524,132L525,134L525,135L523,138L523,140L522,141L521,143L518,146L516,146L515,146L513,151L513,153L512,154L513,155L512,158L511,159L510,160L512,163L512,163L513,164L513,165L514,166L516,169L517,170L518,170L521,173L522,174L521,175L522,177L520,177L520,177L522,178L525,182L528,184L530,186L531,189L533,190L536,192L536,193L536,193L538,194L539,195L539,196L540,197L541,196L542,196L542,196L543,198L544,199L544,200L545,200L545,200L545,200L545,201L547,203L548,204L549,207L550,208L551,209L552,209L553,212L554,215L555,217L556,218L556,221L557,223L557,224L558,226L558,227L558,227L559,230L559,231L558,230L558,234L559,236L558,238L559,239L560,241L560,242L560,245L561,247L560,246L559,245L558,246L558,246L559,250L558,250L558,254L558,255L558,256L558,256L558,256L558,255L557,255L557,256L557,256L557,257L557,258L557,259L557,260L557,261L555,261L555,262L555,264L552,264L551,266L549,267L547,268L545,269L544,270L543,270L542,272L540,273L536,275L535,275L534,276L532,277L532,276L531,276L530,275L529,275L529,274L529,273L528,274L528,276L528,277L527,277L526,276L525,275L523,276L524,276L525,276L525,276L526,277L526,277L525,278L524,278L522,278L521,278L523,279L525,279L526,280L526,280L525,281L524,282L524,283L524,283L523,284L523,284L521,283L517,279L518,280L522,284L523,286L523,287L522,287L522,288L520,288L518,286L514,283L513,282L517,286L517,287L518,289L518,289L518,290L509,294L507,296L506,298L505,299L504,300L501,301L499,301L501,299L500,298L500,293L500,287L501,284L502,284L503,283L503,283L503,282L503,281L502,281L500,280L500,279L499,279L498,280L497,279L497,278L496,277L495,276L495,276L496,276L496,275L498,275L500,275L500,275L501,274L502,273L503,273L503,272L503,271L502,270L503,270L504,270L506,270L506,271L507,269L508,269L508,269L510,269L511,269L512,269L513,270L513,270L514,270L514,270L515,271L517,271L517,271L517,270L518,268L517,268L517,268L514,265L513,265L513,264L513,262L513,261L513,261L513,260L514,260L514,260L515,259L515,258L517,259L518,259L520,259L521,259L521,259L521,259L521,256L521,256L522,256L524,256L525,255L525,254L528,254L529,253L531,251L531,251L532,251L533,251L534,252L534,251L535,250L536,249L536,248L536,246L535,244L535,243L535,241L536,239L536,236L536,235L535,233L535,231L534,228L533,228L533,227L533,226L533,224L533,223L534,222L535,221L536,219L535,219L535,217L535,216L535,216L535,215L535,214L536,214L536,213L537,212L537,211L537,210L536,209L535,208L533,207L532,206L532,205L531,204L531,204L531,203L533,202L534,202L534,201L534,200L533,200L532,200L531,199L529,197L529,197L528,196L527,195L527,194L526,194L526,194L525,195L524,195L524,194L524,194L523,193L522,192L522,190L522,189L522,188L521,187L521,187L520,185L519,184L515,181L515,181L514,180L512,178L511,177L510,176L510,174L510,174L509,172L508,171L507,171L507,171L506,170L504,169L504,168L503,167L503,166L504,165L504,165L504,164L504,164L502,163L498,162L497,161L496,160L495,160L490,157L489,156L488,156L488,155L488,155L488,154L489,154L490,153L490,152L489,150L489,150L490,150L491,150L492,150L496,151L497,151L499,149L500,148L500,147L500,146L501,145L501,144L501,143L500,143L500,142L498,143L498,142L498,141L498,141L497,140L496,140L494,140L494,139L494,139L495,138L496,138L497,137L497,136L496,136L495,135L494,134L492,133L490,132L490,132L487,133L486,134L485,135L484,136L483,135L482,135L479,134L477,133L474,129L474,128L474,127L474,125L475,124L475,123L475,123L475,122L475,121L474,121L474,121L473,120L473,120L473,121L472,122L472,122L471,122L471,121L471,121L471,119L470,119L469,118L469,117L467,115L465,113L464,112L465,111L466,111L467,110L468,108L468,107L468,107L469,107L469,107L471,107L472,108L474,109L474,110L475,111L476,111L476,111L477,110L478,110L478,109L478,108L479,107L480,106L480,106L480,107L482,109L482,109L483,109L483,107L484,106L484,106L488,110L488,110L489,109L489,109L489,108L490,107L491,106L492,106L492,106L493,107L494,107L496,106L497,106L497,106L498,106L499,105L499,104L500,103L500,102L500,101L501,101L502,100L505,99L505,98L506,98L507,99L508,100L509,100L509,101L509,102L511,103L512,103L513,104L514,104L515,104L515,103L516,103L517,103L518,104L519,105L519,105L520,105L521,105L522,104L524,105L526,106L525,107L525,108L524,109L523,109L523,110L522,112L523,112L523,113L524,113L524,114L524,115L524,117L524,118L524,118L525,117L526,118L527,118L528,118L528,118L529,119L529,120L529,120L531,121L532,121L533,123L534,122L535,123L537,123L538,122L539,122L540,124ZM523,300L523,300L523,299L524,298L524,299L524,299ZM531,277L530,277L529,277L530,276L531,276L531,276ZM527,134L527,134L526,134L525,133L526,132L527,133ZM536,128L535,130L534,130L534,128L535,128L536,128ZM535,132L535,133L534,133L535,132L535,131L536,131L536,132ZM529,135L528,135L527,134L528,133L529,134L529,134L529,134L529,135Z"/><path d="M471,260L470,261L470,260L470,260L470,259ZM468,255L468,256L468,255L467,256L467,255L466,254L466,253L467,253L468,254L468,255ZM415,310L415,311L415,311L414,312L414,312L413,310L414,307L414,306L415,307L416,308L415,309ZM438,141L438,142L438,142L439,142L439,141L440,140L440,140L441,141L442,142L443,143L443,143L443,144L443,144L443,146L442,147L442,149L442,150L443,152L445,153L446,152L447,152L448,151L448,151L449,151L452,151L452,152L452,153L452,155L452,157L453,158L453,160L452,162L452,165L451,166L450,167L450,167L450,168L451,168L451,169L451,170L451,171L451,173L450,176L448,179L449,180L450,180L451,181L452,180L453,179L455,177L457,176L457,176L459,175L459,174L460,173L460,172L461,173L462,172L463,171L464,170L465,171L466,171L467,173L469,174L470,174L471,174L470,175L471,176L471,176L472,176L472,175L472,175L473,174L474,174L476,174L477,173L477,171L478,170L478,170L479,169L479,169L479,169L479,168L480,168L481,167L482,168L484,168L486,169L488,169L488,169L490,170L492,174L493,176L495,178L496,179L498,180L499,181L500,183L499,186L499,189L499,192L500,194L501,196L502,198L503,199L504,200L507,200L508,201L507,202L507,202L507,203L508,204L510,204L510,205L511,206L511,207L510,208L510,209L509,210L509,210L509,211L509,213L509,214L509,215L509,217L509,219L509,220L508,221L508,222L507,222L505,223L505,223L504,224L504,224L503,225L503,225L502,225L502,224L502,223L501,223L499,222L497,223L494,223L492,223L490,223L489,223L488,223L487,223L486,223L484,222L483,222L481,223L480,223L478,224L476,225L475,226L474,227L473,229L472,230L471,232L470,233L470,233L470,234L468,234L467,234L467,234L467,238L467,239L468,241L469,241L469,244L469,246L471,247L472,249L473,249L472,250L472,252L472,254L475,259L475,259L475,259L474,258L473,257L473,255L471,253L470,252L470,253L470,254L468,253L467,252L466,250L466,250L466,251L464,249L463,248L462,248L461,247L460,247L459,246L455,247L451,246L449,247L448,246L448,246L448,244L448,241L449,239L449,238L449,237L449,236L448,235L445,235L444,234L443,235L439,235L438,236L437,237L436,238L437,239L438,241L436,245L436,246L436,250L436,253L435,255L434,256L434,259L433,260L431,262L431,266L430,267L430,270L427,274L426,277L425,278L426,278L426,280L425,283L425,286L426,287L427,290L427,291L427,292L428,292L428,292L433,291L434,291L435,293L435,294L436,300L436,301L437,302L438,303L438,303L438,302L438,302L439,303L440,305L442,316L443,317L443,319L442,318L442,316L441,315L441,315L440,315L440,314L441,313L440,312L440,312L438,312L438,314L439,315L441,318L442,319L443,320L444,320L446,321L447,322L450,324L452,324L453,323L455,323L456,324L458,325L460,329L464,332L464,333L463,334L462,335L462,336L461,337L460,338L459,338L458,338L458,338L457,337L457,336L457,336L455,337L453,338L453,339L452,340L451,340L451,340L451,339L450,339L449,338L449,337L450,336L451,335L450,333L450,332L450,332L449,332L448,332L447,331L447,330L446,329L446,329L445,329L444,329L441,328L440,326L439,326L439,326L438,327L438,329L438,329L435,325L432,324L433,321L432,320L431,320L430,319L431,317L430,318L429,317L428,317L427,314L427,314L426,312L424,312L424,312L424,310L423,309L421,308L420,308L419,305L418,305L418,304L417,304L416,305L416,306L415,306L414,306L413,303L413,301L413,298L414,296L415,291L416,289L416,288L417,284L419,279L419,278L420,277L420,276L420,275L420,274L420,273L420,273L422,271L423,270L426,267L428,263L429,261L429,260L430,260L431,259L431,259L431,258L430,254L429,253L429,251L429,250L428,249L429,248L428,247L427,246L426,245L425,243L425,242L425,241L425,240L425,239L425,239L425,235L425,234L425,232L424,231L423,229L422,227L420,225L418,223L417,222L415,220L414,219L413,217L413,215L412,213L413,212L413,211L414,211L414,211L416,210L417,210L417,210L417,209L417,207L417,204L418,202L418,200L421,198L421,198L422,197L422,196L421,195L421,195L419,197L419,196L418,194L417,193L417,192L416,191L416,189L416,188L413,185L412,184L411,182L409,180L407,178L406,176L406,176L406,176L407,174L406,173L405,171L405,170L405,169L405,169L404,169L403,168L402,167L402,166L402,166L403,167L404,166L404,166L406,166L406,165L407,165L407,165L406,160L406,160L407,158L407,156L408,153L409,151L410,150L410,149L411,149L411,149L413,150L414,150L415,150L416,150L417,150L420,149L421,149L422,149L422,149L423,148L423,147L423,145L424,144L424,144L425,144L426,144L427,144L428,144L428,144L429,144L430,143L430,143L430,142L429,141L429,140L430,141L432,141L433,141L433,141L434,140L435,140L436,140L436,140ZM437,286L437,286L437,286L436,285L436,285L437,285L437,285ZM437,288L437,288L437,289L436,290L435,289L436,288L436,288L437,288ZM432,328L432,328L431,327L432,326L432,328ZM418,310L418,310L417,307L418,308ZM414,295L413,295L413,294L414,294L414,293L414,294ZM424,314L425,316L424,315L424,315L424,314L424,313Z"/><path d="M173,287L172,287L171,286L171,286L171,286L171,285L172,285L172,286ZM171,295L172,296L171,295L170,294L170,294L171,294ZM173,284L174,285L175,285L176,285L178,287L182,290L185,294L185,295L185,296L186,296L186,296L189,300L189,301L189,301L189,302L190,302L191,302L191,303L192,306L192,307L192,307L195,312L195,312L195,312L195,313L196,314L197,316L197,316L198,318L198,322L198,323L197,325L196,327L196,328L195,330L191,332L190,332L186,334L183,335L180,336L177,335L174,333L173,330L172,327L171,324L170,314L170,311L169,308L169,306L170,305L170,308L170,308L171,308L171,305L171,303L172,299L172,299L172,297L172,297L174,294L174,293L175,291L174,289L174,288L176,288L176,289L177,289L178,289L179,289L178,288L176,287L174,287L173,286L172,285L173,285Z"/><path d="M489,397L487,398L484,397L485,396L487,395L488,396L488,396L489,396Z"/><path d="M714,165L716,166L721,168L722,169L724,169L725,169L726,169L727,168L728,167L729,166L729,167L730,168L730,169L730,170L729,171L728,172L728,177L728,178L728,179L729,181L729,182L731,182L731,183L731,184L731,185L732,185L733,185L733,186L732,187L732,190L729,195L729,196L728,198L726,199L723,200L722,201L721,202L720,203L721,204L721,205L721,205L720,206L719,208L719,209L718,209L718,210L718,211L718,212L720,215L721,217L722,218L722,218L721,219L721,220L721,222L723,225L723,226L723,227L724,227L725,228L727,229L728,229L729,229L729,228L730,228L730,228L729,227L729,226L729,226L730,226L731,225L732,224L734,224L736,224L737,225L738,226L739,227L740,229L740,229L740,230L740,231L740,232L742,232L743,230L743,229L743,228L743,228L743,227L744,228L745,229L747,230L748,230L749,230L750,230L750,231L750,232L747,232L746,233L747,235L748,236L749,237L750,238L750,239L749,240L751,240L752,240L753,241L754,241L754,241L754,245L753,248L752,247L751,246L751,244L752,243L751,242L750,243L750,243L749,243L747,243L744,241L743,241L743,240L743,239L742,237L742,236L741,236L738,234L737,233L736,232L734,229L733,229L732,229L732,230L732,231L733,231L733,232L733,233L734,234L734,235L735,236L735,238L734,239L733,238L733,237L732,237L731,235L731,235L729,233L727,231L723,229L723,229L722,229L721,229L719,230L719,231L719,232L717,233L715,233L714,232L713,231L712,231L711,230L709,229L708,231L708,228L708,226L708,225L709,224L712,221L712,221L712,219L711,218L710,218L709,218L708,217L707,216L707,218L707,220L707,222L707,222L706,222L705,222L705,221L704,220L703,219L703,217L702,217L701,217L701,217L700,215L700,213L700,211L699,210L699,209L698,203L698,203L698,202L697,202L697,201L696,200L697,197L697,197L697,196L698,197L699,198L699,198L700,198L701,200L702,200L703,200L704,200L704,199L705,199L705,198L704,195L704,194L704,192L704,190L705,188L705,186L705,183L705,182L705,181L705,180L704,178L706,171L707,170L707,168L707,166L709,166L710,165L711,165L712,165L713,165ZM664,303L663,304L663,303L663,301L665,299L666,298L667,297L668,296L670,294L672,292L672,292L673,292L674,292L675,291L678,287L680,285L683,282L684,281L684,280L687,277L687,277L688,277L689,276L689,276L690,274L691,273L690,272L690,271L690,269L691,268L693,265L693,264L694,264L694,265L693,267L693,267L694,268L693,269L695,273L695,275L696,275L694,277L694,277L692,277L691,278L690,279L689,280L689,281L689,281L686,282L684,283L684,283L683,284L683,285L681,290L680,291L679,292L678,293L676,293L675,294L674,296L673,297L672,298L670,299L669,300L668,300L667,301L667,301L666,302L666,302ZM732,260L734,261L735,260L737,261L738,261L738,262L738,263L740,261L741,261L741,263L741,264L741,265L740,266L739,267L738,268L737,268L736,269L736,269L736,270L736,271L735,271L733,273L729,274L727,274L727,275L726,276L725,276L725,276L725,275L726,273L726,273L725,272L725,270L726,269L727,267L727,264L727,260L727,259L727,259L725,258L725,258L725,257L725,257L726,257L727,257L730,258L731,259ZM741,294L740,295L739,295L738,294L737,291L736,290L735,290L734,289L733,289L731,286L731,284L732,283L732,283L733,282L734,282L735,282L737,281L737,280L737,278L737,277L737,275L737,275L738,274L739,273L739,272L739,271L739,270L739,270L742,269L742,269L746,270L746,271L747,272L746,273L746,274L744,276L744,278L743,280L743,281L742,283L741,284L741,286L741,287L741,287L743,291L743,291L743,292L743,292L742,294L742,294ZM760,264L761,264L762,264L763,263L765,264L765,265L766,266L766,267L766,269L766,271L766,272L767,272L767,273L768,273L768,274L768,276L769,277L769,278L769,278L767,278L767,279L767,279L767,279L766,278L765,277L765,279L766,280L766,282L765,281L763,280L763,280L763,278L763,278L762,276L763,273L763,272L763,272L762,270L761,269L760,269L759,270L758,270L758,267L757,264L757,263L756,262L757,261L757,262L758,262L759,263L759,263ZM769,248L770,249L770,250L770,251L770,251L771,251L772,252L772,253L772,253L772,254L771,256L772,258L772,259L772,260L772,261L772,261L773,264L773,264L773,265L773,265L774,265L775,266L775,268L775,268L774,267L774,267L771,267L770,267L768,267L767,265L767,265L766,264L765,262L764,261L765,260L765,259L765,258L765,258L764,258L763,257L763,257L762,256L761,255L760,254L759,254L758,253L757,252L757,250L756,247L760,248L763,248L767,247ZM709,235L710,235L712,235L713,235L713,236L714,236L714,237L715,236L716,237L717,238L719,239L720,240L720,240L719,241L719,243L719,244L720,247L720,247L719,248L718,249L718,250L718,250L718,251L717,251L717,251L717,251L716,252L715,252L714,252L714,251L714,251L713,250L712,249L712,248L712,247L711,246L711,246L710,245L710,245L710,244L710,242L709,240L708,239L707,239L706,238L706,237L706,236L705,236L705,236L704,236L704,235L705,235L706,235L708,235ZM779,291L780,292L781,292L781,294L781,294L783,296L783,297L782,299L781,299L780,300L780,301L781,301L782,301L783,302L784,304L785,306L785,307L784,310L784,311L785,312L786,312L786,313L786,315L786,318L786,319L786,320L784,322L782,323L781,323L781,324L782,325L782,329L781,331L780,330L780,329L780,325L779,324L778,323L778,321L777,320L776,318L776,318L775,318L774,319L774,320L774,321L773,322L772,323L771,325L770,326L771,327L772,328L773,329L773,329L774,332L774,335L773,337L771,340L770,340L769,340L769,338L768,338L769,336L769,335L768,334L768,334L768,335L766,336L766,337L765,337L764,337L761,335L757,334L755,332L753,330L753,328L753,326L752,324L752,323L752,322L753,320L754,320L754,319L755,318L755,318L755,317L755,316L753,314L752,313L749,312L749,312L748,311L747,311L746,311L746,311L745,312L745,312L745,313L744,317L743,316L741,315L741,314L741,314L741,313L740,313L740,314L739,315L738,315L737,315L737,315L736,312L735,312L734,312L732,313L732,313L732,314L730,317L729,320L728,322L728,323L727,323L726,323L725,322L725,321L725,319L726,318L727,317L727,313L727,312L728,311L729,309L730,308L731,308L734,307L735,307L736,307L738,307L739,306L739,305L739,304L739,303L740,303L740,302L741,302L743,301L744,301L744,300L745,299L746,300L746,300L748,300L749,301L750,303L750,304L751,306L750,307L749,308L750,308L751,307L752,307L754,306L755,306L755,305L756,304L757,302L757,301L758,301L758,301L760,302L762,301L762,299L763,297L763,296L764,296L765,296L766,297L767,297L768,296L768,295L769,295L770,295L772,295L772,293L772,292L771,286L772,285L772,285L774,287L777,288L778,290ZM744,289L743,290L743,289L743,288L744,283L744,282L746,280L747,278L748,276L749,274L750,272L751,269L751,268L752,268L752,267L752,266L753,265L753,266L753,267L753,268L753,268L753,270L753,272L753,274L752,277L752,278L751,279L749,279L748,280L748,282L747,283L746,287ZM725,161L724,162L724,162L724,161L724,160L724,160L725,159L726,160ZM720,154L720,156L719,156L718,155L718,154L718,154L718,154ZM725,140L725,141L725,140L725,139L726,139L726,139ZM724,135L724,136L723,136L723,135L724,134L724,134ZM715,334L716,335L716,335L718,335L718,336L718,336L717,337L716,336L714,337L713,336L712,337L711,336L711,335L713,334ZM661,310L660,311L660,310L660,308L660,308L661,308ZM698,275L697,276L696,275L698,273L699,274L700,274L699,275ZM701,253L702,253L702,253L703,252L703,253L704,254L704,255L703,255L702,255L701,255L700,255L699,254L698,253L698,252L698,252L698,252L698,251L698,251L698,251L698,251L699,252L701,253ZM700,259L699,260L699,259L699,259L699,258L698,256L698,255L699,256L700,256L700,256L701,257L700,258L701,258ZM734,276L734,276L734,276L733,276L733,275L733,274L734,273L734,272L735,272L735,272L736,273L736,273L735,275ZM760,285L760,285L759,285L759,285L758,287L757,287L754,287L751,287L751,286L750,285L750,284L750,284L751,283L753,282L754,281L755,280L757,280L757,280L757,280L758,280L759,281L760,282L760,284L760,284ZM703,345L703,346L702,346L702,346L701,346L701,346L700,346L699,347L698,348L697,347L697,347L699,345L701,345L702,344L702,344L703,345ZM727,329L726,330L725,330L724,328L724,328L723,327L724,326L725,326L727,325L730,327L730,327L729,327L729,329ZM779,285L779,285L778,284L779,283L780,281L780,283L780,283L780,284L781,285L780,285ZM775,283L774,283L774,283L773,282L772,281L772,280L772,279L772,278L773,277L773,277L774,276L774,276L774,277L774,279L775,281L774,282L775,283ZM703,232L703,232L701,231L701,231L701,230L701,230L702,231ZM725,234L726,234L726,234L727,235L727,236L728,237L727,238L726,238L726,239L724,238L724,237L724,236L724,234ZM727,250L726,254L725,253L726,252L725,251L725,251L725,250L726,249L726,247L727,246L728,246L728,247L728,248ZM735,251L734,251L733,250L732,249L732,249L732,249L734,249L735,249L735,250ZM743,244L744,246L743,244L741,243L740,242L739,241L738,241L739,240L739,240L740,240L742,243ZM749,249L749,250L749,250L747,247L747,247L747,246L748,247ZM749,251L751,253L753,256L753,258L753,259L752,258L750,256L749,256L749,256L749,255L748,254L748,254L747,254L746,253L745,252L745,253L743,255L741,256L741,256L742,254L742,251L743,250L742,249L742,247L744,248L745,248L746,249L747,250ZM757,233L757,234L756,234L756,234L755,235L753,233L753,233L754,231L754,228L754,228L755,227L755,227L756,229L757,229L758,230L757,232L758,233ZM728,227L728,228L725,226L725,226L725,225L725,225ZM726,214L727,215L726,215L726,215L726,216L726,218L726,219L725,219L725,219L725,218L725,218L725,217L724,217L724,216L724,215L724,214L726,214ZM756,274L756,274L757,273L757,273L757,273L757,274ZM769,282L769,283L768,281L767,280L768,280L768,280ZM738,316L738,317L738,317L737,318L737,318L736,317L737,316L737,317L738,316ZM776,322L776,323L775,321L774,321L775,319L776,320ZM760,262L759,262L758,261L757,260L758,259L759,259L760,260L760,261ZM763,293L763,294L761,294L761,293L761,292L762,292L762,292L763,293ZM716,158L716,159L715,159L715,158L715,158L716,157L716,157ZM698,262L698,262L698,263L697,264L697,263L696,263L696,262L696,262L697,262ZM749,265L750,267L749,267L748,265L749,265ZM730,248L730,248L729,248L729,248L730,247L730,247ZM778,287L778,288L778,287L778,285L778,285L778,286ZM764,261L763,261L763,261L763,261L762,260L762,259L763,259L763,260ZM665,306L664,306L664,305L664,304L664,305L665,305ZM748,292L748,294L747,294L746,294L746,293L746,292L746,292L747,292L748,292Z"/><path d="M438,329L438,329L438,327L439,326L439,326L440,326L441,328L444,329L445,329L446,329L446,329L447,330L447,331L448,332L449,332L450,332L450,332L450,333L451,335L450,336L449,337L449,338L450,339L451,339L451,340L451,340L452,340L453,339L453,338L455,337L457,336L457,336L457,337L458,338L458,338L459,338L460,338L461,337L462,336L462,335L463,334L464,333L464,332L466,332L467,333L470,337L473,340L474,341L476,341L477,343L478,345L481,350L482,353L482,356L481,362L481,365L481,366L482,368L481,370L482,371L482,376L482,377L483,378L487,380L487,381L489,385L492,392L493,395L493,396L492,396L491,396L490,396L490,395L490,395L490,394L489,394L489,393L489,394L489,395L488,395L487,395L485,395L483,397L482,397L481,395L481,395L480,394L474,391L472,390L470,387L465,385L461,382L460,380L456,379L455,377L454,377L453,376L454,375L454,373L453,371L451,369L450,367L448,365L447,363L446,362L446,362L447,361L446,360L445,359L444,357L444,353L443,348L441,341L441,338L441,335L440,333L438,331ZM668,359L667,359L666,359L664,358L661,357L658,357L656,357L655,357L655,357L654,357L654,357L652,358L652,357L651,357L650,357L649,357L647,358L646,357L645,357L645,357L644,358L643,359L642,361L642,362L641,362L641,365L641,366L641,368L641,369L641,370L641,370L640,372L640,373L640,373L640,374L639,375L638,375L637,374L636,375L635,376L635,377L635,378L635,378L635,378L635,379L635,380L636,380L636,381L636,381L636,381L635,382L633,383L632,384L631,385L631,385L631,386L631,387L631,388L632,388L631,389L631,389L630,390L630,390L630,390L629,392L629,393L628,394L628,395L627,395L626,395L624,395L622,395L621,395L619,395L618,396L617,397L616,398L616,398L614,397L613,397L612,397L609,396L608,395L608,395L607,395L607,395L607,394L607,394L601,394L599,394L598,395L597,395L597,397L596,398L595,399L593,400L592,401L591,401L590,401L589,401L588,401L588,401L585,401L582,400L581,401L580,401L576,403L575,403L574,403L573,402L572,401L569,399L568,398L568,397L567,397L566,396L566,395L564,394L563,393L563,391L562,391L562,390L562,389L563,388L564,389L564,390L566,391L568,392L569,392L571,392L572,392L573,392L573,392L577,394L578,394L580,394L580,394L582,396L583,396L584,396L583,395L582,395L582,394L582,393L583,392L583,391L583,389L584,388L584,387L585,386L584,385L584,384L584,383L584,382L585,383L586,383L586,383L587,383L587,382L587,381L587,380L588,378L589,377L591,377L596,376L604,374L606,373L607,373L608,372L609,370L612,367L613,365L617,362L620,358L620,358L620,356L620,355L620,354L621,354L621,354L621,354L622,354L623,355L624,355L624,356L624,357L624,358L625,358L626,358L627,359L627,360L628,361L629,361L629,361L630,360L631,359L631,358L631,358L632,357L632,356L631,356L631,355L631,354L631,353L630,352L631,352L632,351L633,350L634,350L634,351L634,352L634,354L635,356L636,357L637,357L638,357L638,357L638,357L637,356L637,353L637,352L636,350L636,350L639,349L639,349L641,348L641,347L641,346L640,345L639,344L639,343L641,341L642,340L642,341L643,341L644,341L644,341L645,340L646,339L648,337L648,335L649,333L653,328L654,327L657,322L657,322L658,323L658,324L658,325L658,326L657,327L658,327L659,326L660,325L661,323L662,322L663,323L663,323L663,324L663,325L664,326L665,327L667,328L668,328L669,329L669,330L669,331L669,332L668,333L669,334L669,335L668,336L667,337L671,336L672,336L673,334L674,335L675,337L674,337L672,338L672,338L673,339L674,339L675,338L677,338L677,338L678,338L679,338L680,339L681,339L681,341L683,341L686,343L686,343L687,343L689,343L689,343L690,344L690,344L690,345L690,346L689,346L688,347L685,348L682,349L681,349L678,348L677,348L677,349L676,351L678,353L681,355L681,356L681,356L680,357L680,357L678,357L676,357L675,358L673,358L672,358L670,357L669,357L669,358L668,359ZM492,378L491,378L491,378L491,378L491,377L491,376L492,378ZM440,344L440,345L439,345L439,342L440,342L440,343L441,343ZM434,329L435,330L435,331L435,331L434,331L433,332L433,332L432,331L432,330L432,330L433,330L433,330L434,329ZM662,320L661,320L661,320L661,318L662,317L664,317L664,318L664,319L663,319ZM454,375L453,375L453,375L453,374L454,374L454,374ZM586,382L586,383L585,382L585,378L586,378L586,378L586,379L586,380L586,382ZM672,359L670,359L669,359L669,359L669,358L669,358L670,358Z"/><path d="M464,112L465,113L467,115L469,117L469,118L470,119L471,119L471,121L471,121L471,122L472,122L472,122L473,121L473,120L473,120L474,121L474,121L475,121L475,122L475,123L475,123L475,124L474,125L474,127L474,128L474,129L477,133L479,134L482,135L483,135L484,136L485,135L486,134L487,133L490,132L490,132L492,133L494,134L495,135L496,136L497,136L497,137L496,138L495,138L494,139L494,139L494,140L496,140L497,140L498,141L498,141L498,142L498,143L500,142L500,143L501,143L501,144L501,145L500,146L500,147L500,148L499,149L497,151L496,151L492,150L491,150L490,150L489,150L489,150L490,152L490,153L489,154L488,154L488,155L488,155L488,156L489,156L490,157L495,160L496,160L497,161L498,162L502,163L504,164L504,164L504,165L504,165L503,166L503,167L504,168L504,169L506,170L507,171L507,171L508,171L509,172L510,174L510,174L510,176L511,177L512,178L514,180L515,181L515,181L519,184L520,185L521,187L521,187L522,188L522,189L522,190L522,192L523,193L524,194L524,194L524,195L525,195L526,194L526,194L527,194L527,195L528,196L529,197L529,197L531,199L532,200L533,200L534,200L534,201L534,202L533,202L531,203L531,204L531,204L532,205L532,206L533,207L535,208L536,209L537,210L537,211L537,212L536,213L536,214L535,214L535,215L535,216L535,216L535,217L535,219L535,219L534,221L533,221L532,220L532,220L531,221L530,222L529,222L529,222L528,223L528,224L527,224L526,224L526,224L525,223L524,222L523,222L523,221L522,221L522,220L521,221L520,222L519,222L518,222L518,223L518,223L515,223L515,223L515,225L517,226L517,227L516,229L514,229L513,228L512,227L512,227L509,226L507,227L507,227L506,226L505,225L505,225L505,224L505,223L505,223L507,222L508,222L508,221L509,220L509,219L509,217L509,215L509,214L509,213L509,211L509,210L509,210L510,209L510,208L511,207L511,206L510,205L510,204L508,204L507,203L507,202L507,202L508,201L507,200L504,200L503,199L502,198L501,196L500,194L499,192L499,189L499,186L500,183L499,181L498,180L496,179L495,178L493,176L492,174L490,170L488,169L488,169L486,169L484,168L482,168L481,167L480,168L479,168L479,169L479,169L479,169L478,170L478,170L477,171L477,173L476,174L474,174L473,174L472,175L472,175L472,176L471,176L471,176L470,175L471,174L470,174L469,174L467,173L466,171L465,171L464,170L463,171L462,172L461,173L460,172L460,173L459,174L459,175L457,176L457,176L455,177L453,179L452,180L451,181L450,180L449,180L448,179L450,176L451,173L451,171L451,170L451,169L451,168L450,168L450,167L450,167L451,166L452,165L452,162L453,160L453,158L452,157L452,155L452,153L452,152L452,151L449,151L448,151L448,151L447,152L446,152L445,153L443,152L442,150L442,149L442,147L443,146L443,144L443,144L443,143L443,143L442,142L441,141L440,140L440,140L439,141L439,142L438,142L438,142L438,141L438,140L439,137L440,135L441,134L442,134L443,134L444,134L445,133L444,133L444,133L443,133L443,132L444,131L444,131L445,130L446,128L446,127L447,127L449,126L451,125L451,123L452,124L452,126L452,126L452,127L452,128L452,128L453,129L453,129L455,128L457,128L457,129L458,129L458,129L459,129L459,129L460,129L460,128L460,128L460,128L459,127L459,126L459,124L459,123L459,120L459,120L459,119L457,117L457,117L457,116L457,115L457,114L456,114L457,113L458,113L458,112L458,111L459,110L459,110L460,110L461,112L462,111L463,111L464,111Z"/><path d="M403,395L406,399L407,399L409,401L409,401L409,403L408,406L408,407L406,406L406,406L405,403L403,402L402,402L402,400L401,399L398,396L400,396L401,395L401,394L402,394ZM425,438L424,438L421,436L421,436L421,435L418,431L418,430L419,427L421,426L422,427L423,428L424,431L424,432L425,433L425,433L425,433L426,435L427,436L427,437ZM655,528L654,531L654,531L655,532L652,532L651,532L650,532L647,532L645,531L645,530L645,530L646,530L647,530L648,530L648,528L648,526L650,524L651,523L652,523L655,524L656,524L656,524L657,525ZM640,522L641,523L643,525L643,525L642,526L641,527L638,528L638,529L637,530L637,531L637,531L636,531L636,531L635,531L636,530L636,529L635,528L635,528L633,527L632,526L630,525L629,525L628,525L627,523L627,523L627,522L627,522L627,522L629,522L632,522L633,522L634,522L636,521L636,521L638,521ZM516,436L516,437L517,438L517,439L518,443L520,447L526,448L525,449L525,449L524,450L523,452L523,453L524,454L524,455L523,455L523,455L522,454L521,454L521,453L520,453L519,452L517,452L515,452L514,450L514,449L515,447L514,447L513,446L513,445L512,443L511,442L510,442L509,442L507,442L506,442L505,442L504,441L504,440L505,440L506,439L507,438L507,437L507,437L507,436L508,436L508,435L510,434L511,436L511,436L511,437L512,436L512,434L513,434L514,434L515,435L516,435ZM741,474L742,477L742,478L741,477L741,477L740,477L740,477L740,477L739,478L739,479L739,480L739,482L739,483L739,482L740,482L741,483L742,484L742,485L741,485L740,486L739,485L739,486L738,486L738,487L738,487L737,489L737,489L736,489L735,489L734,489L734,487L734,487L734,486L734,485L735,485L736,484L736,483L736,483L736,481L736,480L737,479L737,478L737,475L738,473L740,472L740,472L740,473ZM734,484L734,485L733,485L733,485L732,485L731,485L731,485L730,485L730,484L730,482L731,481L731,480L730,478L731,477L733,476L735,475L735,475L736,476L736,479L734,482ZM546,366L544,366L543,365L544,365L544,365L545,364L545,364L543,364L542,363L542,362L542,361L544,359L545,359L545,360L547,362L547,363L547,364ZM544,454L544,455L544,456L543,456L542,457L541,457L541,456L541,456L540,455L539,455L539,456L537,457L537,457L537,455L536,455L536,454L536,453L536,453L536,452L536,451L537,450L537,448L539,448L540,448L543,448L544,450L545,452ZM811,387L809,388L808,387L808,384L809,382L811,380L812,380L813,380L814,382L813,385L812,387ZM807,436L806,437L806,437L804,436L802,437L799,437L798,437L797,436L797,435L798,433L800,432L800,432L802,432L804,433L805,434L807,435ZM779,447L779,447L778,446L778,444L777,444L777,442L777,441L778,440L778,440L778,441L778,443L779,445ZM779,438L783,438L782,439L778,440L776,439L772,440L771,440L771,439L771,439L771,438L772,438L775,438ZM765,437L766,437L767,437L767,437L767,437L768,437L768,438L769,438L769,438L770,438L770,439L767,439L765,440L763,439L761,440L759,441L758,441L757,439L757,437L758,436L759,436L761,436ZM789,516L789,516L789,516L788,517L786,517L785,518L785,519L783,519L781,519L780,518L779,518L778,519L776,520L776,520L776,518L777,518L778,515L780,516L781,516L783,516L785,515L787,514L788,515ZM760,522L760,523L761,522L762,522L764,522L766,522L767,523L767,524L767,525L758,526L757,525L757,525L758,524L757,523L758,522L759,522ZM390,345L392,345L395,345L396,345L398,345L399,346L403,345L403,345L404,346L405,346L406,348L409,350L410,351L410,353L410,353L413,356L414,357L413,359L414,360L417,362L419,363L419,363L419,364L420,365L421,365L425,367L430,371L433,372L435,375L436,376L437,378L438,379L440,382L441,383L442,384L442,385L443,385L444,386L445,386L447,388L448,389L448,387L447,386L447,385L447,385L448,384L449,384L450,385L452,387L453,388L454,389L455,391L456,392L457,392L459,392L460,393L463,395L464,396L465,398L465,399L466,401L466,401L468,403L469,404L470,404L474,405L475,406L476,407L477,408L476,409L473,410L470,411L473,411L474,411L476,410L477,409L479,408L480,408L481,408L482,408L483,409L485,410L486,412L486,414L485,415L484,415L481,417L481,417L482,418L481,419L482,420L483,420L481,421L482,422L483,424L483,425L485,426L488,427L490,428L492,428L492,428L494,428L494,428L495,431L495,432L495,435L496,437L496,438L496,440L498,440L499,441L500,442L500,443L500,444L499,444L498,446L498,446L497,448L498,448L498,449L499,448L501,446L501,446L502,446L502,445L506,445L507,446L509,446L510,447L514,452L516,455L516,456L516,457L516,457L514,459L514,460L513,462L513,463L514,464L514,465L514,465L513,469L513,469L514,474L514,476L514,477L514,480L513,489L513,490L512,491L511,491L510,491L510,490L509,490L509,489L507,487L506,488L504,490L503,490L502,490L501,489L497,487L497,488L497,489L498,491L498,492L497,492L497,492L495,491L494,489L492,487L491,486L490,485L487,481L486,481L481,478L480,477L479,476L478,475L475,473L470,469L468,467L465,463L464,462L460,459L458,457L457,456L455,452L454,451L454,450L452,449L451,448L449,445L448,444L448,443L448,440L443,431L441,429L440,425L440,425L437,422L437,421L435,420L434,418L433,415L432,414L431,413L428,412L426,411L425,410L425,408L424,405L422,401L420,395L419,392L418,390L417,389L411,385L410,385L409,384L407,384L406,383L406,381L405,379L405,378L405,377L402,375L401,374L400,372L399,371L396,367L395,366L394,365L391,365L390,364L388,362L387,361L384,358L378,353L377,352L376,350L376,349L373,345L373,344L374,343L374,342L373,342L373,341L374,341L376,340L377,340L379,340L380,341L382,342L384,344L385,345L387,345ZM736,528L734,529L733,529L732,530L731,530L730,530L728,530L727,530L724,531L722,532L721,532L721,531L720,531L719,531L718,531L717,532L715,532L715,532L714,532L713,532L713,532L710,531L707,531L704,531L701,530L700,531L698,531L698,531L697,530L697,529L697,528L697,528L698,527L698,526L698,526L699,526L699,526L701,525L703,524L704,523L705,523L706,523L707,523L708,523L709,524L709,524L711,524L713,525L714,526L716,526L718,527L719,528L719,528L720,528L721,527L722,527L723,527L724,527L725,526L726,526L726,526L727,527L729,528L730,528L732,528L732,527L732,527L733,526L733,526L734,525L736,525L737,524L738,523L736,522L736,522L737,521L738,521L739,522L739,524L738,525L738,525L738,525L737,526L737,527L737,528ZM700,538L700,539L703,540L703,540L703,541L703,542L704,542L705,542L706,542L707,543L708,544L709,545L710,546L711,547L710,548L709,549L708,550L707,550L705,551L705,550L703,550L702,549L700,548L700,547L699,546L697,546L694,544L693,543L692,544L691,544L688,543L687,542L687,542L686,541L686,540L686,540L687,539L689,538L690,538L692,538L695,538L697,538L698,538L699,537L699,538ZM676,524L677,525L678,525L679,524L680,524L681,524L681,524L682,524L682,525L683,525L683,524L684,524L684,524L685,524L686,524L687,526L687,527L687,528L688,528L688,529L688,529L687,530L686,530L686,530L686,529L685,529L684,529L683,530L683,530L684,530L684,531L684,531L684,531L683,531L682,531L680,531L679,531L678,531L679,529L678,529L676,531L676,531L675,531L674,531L671,532L671,532L670,532L667,533L665,534L664,534L664,534L663,534L662,534L661,535L660,534L658,534L657,533L657,533L657,532L658,531L657,529L657,528L658,527L659,527L659,527L661,526L662,525L663,525L665,526L666,526L668,526L668,526L669,527L669,527L669,528L671,529L672,529L673,530L675,529L676,529L676,528L676,527L675,526L674,526L674,526L673,526L671,525L670,524L670,523L670,522L672,521L672,521L675,522L675,522L676,524ZM764,401L761,403L761,405L760,406L759,407L758,408L757,408L756,409L755,409L754,409L749,410L748,410L746,410L743,410L743,410L741,409L740,408L739,408L738,408L730,408L727,408L724,409L722,408L721,408L720,408L718,408L713,408L712,408L709,408L707,407L706,408L704,408L704,409L702,411L701,412L701,414L700,415L700,417L700,418L700,420L700,422L701,423L703,426L703,426L705,427L706,428L708,431L708,432L709,432L710,432L712,432L713,433L715,432L716,430L716,429L718,427L720,426L720,425L721,425L722,426L722,426L724,427L726,427L727,426L728,425L728,425L730,424L733,424L735,424L738,424L738,424L737,423L737,423L737,423L739,422L741,422L743,422L744,423L745,424L745,425L744,427L744,428L743,428L742,427L741,426L740,426L738,426L737,427L737,427L735,428L735,430L733,432L730,434L729,435L728,435L724,437L723,438L722,439L721,439L720,439L720,439L718,438L717,439L717,440L718,440L719,441L720,443L721,443L722,443L723,444L724,445L726,448L726,449L727,451L730,453L730,453L730,454L730,454L731,456L731,456L730,457L730,459L729,461L729,461L729,462L730,463L730,463L731,463L732,464L733,465L734,465L734,466L734,467L735,467L735,468L736,468L736,468L736,468L737,468L737,468L738,469L738,470L738,472L737,472L737,472L735,472L735,472L735,472L735,473L734,473L732,473L729,474L727,474L727,475L727,476L727,477L726,478L725,478L723,478L721,477L721,477L720,476L719,475L720,471L720,470L720,470L721,469L721,468L720,467L718,467L717,466L712,461L711,461L711,460L712,459L713,457L713,456L714,454L714,452L713,451L713,449L711,449L710,449L708,449L707,450L704,452L703,453L703,455L704,456L704,457L705,458L705,463L705,464L705,465L704,468L705,472L705,475L705,477L704,480L703,481L703,482L705,485L705,487L705,488L704,487L703,487L702,488L701,488L699,488L698,488L697,489L696,489L696,489L694,488L693,487L691,486L691,484L692,483L692,481L693,479L693,477L694,475L694,474L695,473L695,467L695,467L693,464L693,463L693,463L693,462L693,461L693,461L692,460L691,460L690,460L686,461L685,460L685,459L684,458L684,456L684,454L685,453L684,452L684,451L684,450L684,450L685,449L685,449L686,449L688,447L688,446L688,444L689,442L690,441L691,440L691,438L690,436L691,435L691,434L691,433L691,431L693,426L695,424L696,423L697,424L698,426L698,424L697,423L697,421L696,415L696,415L697,415L697,415L698,414L697,412L697,411L698,408L700,407L700,407L700,405L701,405L702,404L703,403L703,402L703,401L704,401L704,403L705,403L706,404L708,403L708,402L708,402L709,401L710,401L710,399L711,398L712,397L712,397L713,397L714,397L716,398L716,398L717,398L718,398L719,398L719,399L720,400L720,400L721,400L724,400L727,401L732,401L733,401L735,402L736,403L737,403L738,403L739,402L739,402L740,402L743,402L750,403L751,403L756,401L758,399L759,398L760,397L760,396L761,396L762,395L763,395L764,394L765,392L765,392L767,392L768,393L768,395L768,395L767,396L767,396L766,399L765,400ZM533,494L535,495L536,496L537,496L539,496L540,497L542,497L543,497L544,497L545,497L546,497L546,497L547,498L548,500L549,500L550,503L551,504L552,504L553,504L555,504L559,505L560,505L561,504L563,505L566,505L567,506L569,505L571,505L571,506L572,506L573,506L574,506L575,505L576,504L576,503L577,501L577,500L578,500L578,499L579,499L581,499L581,500L583,502L584,503L586,503L586,503L588,502L588,502L590,503L590,503L591,504L594,504L595,505L596,505L598,505L600,505L601,506L602,507L603,509L603,510L604,510L605,511L605,512L605,514L608,515L611,516L614,516L617,516L619,516L621,515L622,515L626,517L626,517L626,519L626,520L626,523L626,524L626,525L627,527L627,528L628,529L628,530L628,530L627,530L626,529L625,529L624,528L623,528L620,528L617,526L611,524L609,524L608,524L606,525L604,525L603,525L602,525L599,525L596,524L588,524L586,523L582,523L579,523L576,522L568,519L566,518L558,516L557,516L555,516L553,516L551,516L549,516L548,516L548,517L546,517L545,517L541,516L539,516L538,515L536,514L536,514L532,513L529,513L524,512L522,512L521,512L521,511L521,510L521,509L522,508L522,507L518,506L515,505L513,505L512,505L510,505L508,505L508,504L507,504L506,505L506,504L505,504L506,503L507,502L507,502L507,503L507,504L508,504L509,504L510,502L510,502L511,500L511,500L512,500L512,499L514,495L514,494L516,493L516,492L518,493L520,493L521,494L523,494L524,494L526,495L527,495L528,494L529,494L529,492L531,493L533,493ZM563,388L562,389L562,390L562,391L563,391L563,393L564,394L566,395L566,396L567,397L568,397L568,398L569,399L572,401L573,402L574,403L575,403L576,403L580,401L581,401L582,400L585,401L588,401L588,401L589,401L590,401L591,401L592,401L593,400L595,399L596,398L597,397L597,395L598,395L599,394L601,394L607,394L607,394L607,395L607,395L608,395L608,395L609,396L612,397L613,397L614,397L616,398L616,398L617,397L618,396L619,395L621,395L622,395L624,395L626,395L627,395L628,395L628,394L629,393L629,392L630,390L630,390L630,390L631,389L631,389L632,388L631,388L631,387L631,386L631,385L631,385L632,384L633,383L635,382L636,381L636,381L636,381L636,380L635,380L635,379L635,378L635,378L635,378L635,377L635,376L636,375L637,374L638,375L639,375L640,374L640,373L640,373L640,372L641,370L641,370L641,369L641,368L641,366L641,365L641,362L642,362L642,361L643,359L644,358L645,357L645,357L646,357L647,358L649,357L650,357L651,357L652,357L652,358L654,357L654,357L655,357L655,357L656,357L658,357L661,357L664,358L666,359L667,359L668,359L668,359L667,360L666,361L667,362L668,363L669,363L670,364L670,365L670,365L670,366L670,366L668,366L668,366L667,365L667,366L666,366L664,366L662,366L661,367L662,367L662,367L665,369L665,370L664,372L665,372L666,373L667,373L668,374L668,374L668,375L668,375L668,376L668,376L669,376L669,377L669,377L669,377L670,378L670,378L671,379L672,381L674,383L674,384L674,385L674,385L673,386L672,387L672,387L670,388L671,388L671,388L672,390L674,392L675,393L679,396L682,397L685,400L686,401L686,401L685,403L683,403L680,404L677,403L676,403L675,402L673,401L672,400L673,401L673,402L673,403L672,403L671,404L670,404L670,405L667,410L667,411L666,417L666,419L667,422L667,423L668,424L667,424L667,425L665,426L663,426L662,428L661,429L660,430L659,430L658,430L657,430L657,429L657,428L657,429L657,429L657,430L657,431L657,432L656,432L655,433L654,434L654,435L654,435L653,436L651,437L651,437L651,438L652,438L653,438L653,439L653,440L653,441L651,442L652,443L652,443L654,443L654,445L654,446L654,447L653,448L652,447L652,448L651,448L651,449L652,448L652,450L652,452L651,453L651,453L650,454L649,453L649,454L649,454L650,455L650,456L649,456L649,457L648,458L647,460L647,461L646,462L637,466L630,469L629,469L629,468L629,463L628,460L628,459L627,460L626,460L625,460L625,459L625,459L625,457L624,458L624,459L623,458L622,458L622,458L622,457L620,459L618,460L617,460L616,459L616,458L616,457L616,456L615,456L614,456L613,457L612,457L612,457L608,453L607,456L604,458L602,459L600,459L598,458L596,459L594,461L593,461L592,461L592,461L592,459L592,458L592,455L592,454L591,453L590,452L590,453L589,453L588,453L586,453L585,453L582,455L580,455L579,454L579,454L579,453L580,453L579,453L578,454L577,454L577,454L576,452L573,453L573,453L572,454L571,453L571,453L571,450L570,444L569,441L569,440L567,439L568,437L568,436L568,434L568,433L568,431L567,430L566,429L565,428L564,427L561,426L559,426L559,425L558,425L558,424L559,423L560,423L560,423L558,422L557,421L557,420L556,419L556,418L557,417L557,416L557,414L558,414L558,414L558,413L557,413L557,412L556,411L554,410L554,407L554,404L554,402L554,399L555,398L556,398L557,398L556,398L556,398L555,398L556,395L556,395L557,393L558,392L559,390L560,389ZM801,403L802,403L803,403L804,403L804,402L804,401L806,400L806,399L807,399L807,398L807,397L808,396L811,394L812,394L814,394L814,394L814,395L814,396L814,400L814,400L812,401L809,402L809,403L808,404L808,405L810,406L813,407L814,408L814,409L814,410L815,410L816,410L816,411L817,411L812,410L811,409L809,409L808,409L806,408L805,408L804,409L804,409L803,410L804,412L804,412L803,414L805,418L806,421L808,424L809,425L811,426L809,426L808,425L806,424L805,423L803,420L803,419L802,418L801,417L801,416L801,415L801,414L801,412L801,410L801,410L800,409L799,408L799,406L799,405L799,405L800,404L800,403L799,402L797,399L797,398L799,395L799,394L799,393L799,392L800,390L801,388L804,386L804,386L805,385L805,386L805,386L804,389L803,389L803,390L804,391L805,392L805,393L805,395L805,397L805,397L803,399L800,401L800,401L800,402L801,403ZM826,458L825,458L825,458L825,459L825,460L824,460L822,459L821,459L819,458L818,458L817,458L818,457L818,457L817,457L816,457L815,457L815,458L814,459L813,460L812,460L811,460L810,459L809,457L808,456L807,456L807,456L806,456L806,457L805,458L805,458L804,460L804,460L804,460L804,459L804,458L804,458L803,457L806,453L808,452L812,452L815,452L817,452L818,452L819,452L819,452L820,453L820,453L822,452L823,451L824,451L824,451L825,451L826,451L826,451L826,458ZM790,455L792,456L793,457L793,457L793,458L794,458L795,459L795,460L795,462L794,462L793,463L791,464L790,464L789,464L788,465L788,465L786,464L784,463L781,462L781,461L781,461L779,459L779,458L779,456L779,455L780,455L781,456L783,455L786,455L789,455ZM764,533L764,534L765,534L765,534L767,533L767,533L767,534L767,535L767,536L765,536L765,536L765,537L765,537L765,538L766,538L766,540L765,541L765,542L763,543L762,545L760,547L759,548L758,549L757,549L755,549L752,551L750,551L749,551L748,551L747,550L747,549L748,549L748,548L749,548L747,547L747,546L747,544L748,543L748,541L751,539L752,538L753,538L753,538L753,539L754,539L754,539L756,539L756,539L757,538L758,537L758,536L758,536L760,535L761,535L762,534L764,533ZM459,387L460,388L460,389L459,390L459,391L457,392L456,391L456,391L455,389L455,388L455,387L457,387L458,386ZM468,401L468,402L467,401L466,400L466,399L466,398L466,397L466,396L466,396L467,397L468,398L469,398L469,399L468,400ZM469,395L469,397L468,396L467,396L466,395L465,395L464,395L463,394L463,393L463,393L463,393L469,394ZM476,404L476,405L475,405L473,404L472,404L470,403L469,403L469,403L469,402L469,401L469,400L470,399L471,400L472,401L473,402L475,403L476,403ZM478,403L478,403L477,403L476,403L475,402L474,401L473,401L472,401L472,400L472,399L473,399L476,400L477,401ZM480,407L478,407L478,407L478,406L478,405L479,405L480,406ZM482,406L481,406L480,404L481,403L481,403L482,403L482,404L482,405ZM489,399L490,399L491,399L491,399L491,400L490,401L489,401L488,401L488,400L488,400L488,399L489,399ZM497,398L497,399L498,400L498,400L498,402L497,403L497,403L496,403L495,403L495,402L495,402L495,402L495,401L495,400L493,401L492,401L492,400L492,400L494,399L495,399L496,399ZM499,417L500,417L500,416L501,417L501,418L502,418L501,418L501,418L501,419L498,417L496,418L495,417L495,417L496,416L496,414L497,415L498,415L498,415L498,416ZM495,419L496,420L497,420L496,421L496,422L495,422L494,422L494,423L493,421L492,420L493,419L493,419L493,419L494,420ZM486,419L484,419L482,419L482,418L483,417L484,417L485,418L486,418ZM564,430L562,431L561,431L560,431L561,428L561,427L563,427L564,428L565,428L565,429L565,429ZM619,508L618,508L616,508L615,509L614,510L610,510L610,509L609,509L609,510L608,509L604,509L604,508L604,507L606,505L608,505L620,505L622,506L622,507L619,507ZM795,421L794,421L793,421L793,420L793,418L794,418L796,418L795,418L795,419ZM799,418L801,420L800,422L800,423L802,423L803,424L803,424L803,425L803,425L802,426L801,425L800,425L800,424L798,425L798,425L798,424L798,423L797,422L796,421L796,420L796,419L796,419L797,419L798,420L798,419L799,418ZM809,463L808,463L807,464L807,463L807,463L807,463L806,463L806,463L805,464L804,464L804,463L804,463L805,462L806,462L808,461L809,461L809,461L809,462L809,462ZM789,361L789,361L788,361L788,361L789,359L789,358L789,358L788,357L788,356L789,354L789,355L790,355L790,357L791,358L790,359ZM774,369L774,369L772,369L772,368L772,367L772,366L771,366L772,365L773,366L773,367L774,369ZM826,519L826,519L826,518L826,518L826,519ZM803,521L805,522L806,522L806,522L805,523L803,522L802,522ZM468,487L466,487L464,485L464,484L465,484L465,484L468,485L468,486ZM442,456L442,458L441,457L441,456L441,455L440,455L439,454L439,451L439,451L440,451L442,454L442,454L442,455L442,456ZM439,450L438,451L437,451L436,451L436,449L436,449L436,448L436,448L436,447L439,450ZM434,445L434,445L432,444L431,444L430,443L430,442L431,441L431,441L431,441L432,441L433,443L434,444ZM416,421L415,422L414,421L414,420L415,419L415,418L416,417L414,414L415,414L415,415L416,417L417,418L417,419ZM390,383L389,383L388,383L388,382L384,380L383,380L382,380L381,379L380,378L380,377L381,377L381,376L382,376L384,378L385,378L385,378L386,379L389,381L390,382L390,382ZM726,486L726,486L724,485L723,484L724,483L724,482L724,482L724,481L725,481L726,481L726,482L726,482L727,483ZM742,430L742,431L742,431L742,433L744,431L745,431L746,431L746,431L746,432L746,433L745,434L744,434L743,433L743,433L742,435L742,435L741,436L741,435L741,435L742,434L741,431L740,432L739,434L738,435L737,435L737,433L737,431L738,430L739,430L741,430ZM724,420L725,420L724,421L724,421L723,421L722,421L722,421L721,421L722,421L723,420L723,420ZM707,497L706,500L706,499L706,497L705,496L706,495L706,492L706,490L707,492L707,493ZM639,506L638,507L637,506L637,505L637,505L638,505L639,505L640,505L641,505L641,506L639,506ZM651,465L648,468L648,467L648,465L647,463L647,462L648,460L648,458L650,457L650,457L650,459L651,460L651,460L651,461L651,463L651,464L651,465ZM738,559L737,559L737,559L737,557L737,557L740,556L741,555L743,554L744,553L744,553L744,553L744,554L745,555L745,555L743,556L742,557L739,558ZM756,524L755,525L755,527L754,527L753,527L752,526L751,526L752,525L752,524L753,524L754,525L754,525L755,523L756,523L756,523L756,523ZM751,524L749,524L748,526L747,526L747,526L747,527L747,527L747,527L746,527L746,527L745,528L745,528L743,527L742,527L742,527L743,526L745,525L745,524L745,524L744,524L744,524L745,524L746,523L747,524L747,524L749,522L750,523L751,523ZM743,525L743,525L739,525L740,524L741,524L741,523L742,523L744,524ZM481,400L481,401L481,401L480,400L480,400L481,399L481,400ZM487,404L487,404L486,403L486,403L486,403L486,403ZM492,403L491,404L490,403L490,402L490,402L491,402L491,403L492,403ZM498,414L498,414L498,413L497,413L497,413L496,411L496,411L498,413ZM519,373L519,374L518,373L518,372L518,372L519,372ZM512,377L512,377L511,376L511,376L511,375L511,375L511,374L512,374L512,375L513,375L513,375L513,375L513,376ZM553,376L553,377L552,376L553,375L553,375ZM554,436L553,436L552,435L553,435L554,435ZM535,452L534,453L534,452L534,452L534,452L535,452L535,452ZM527,454L527,454L526,454L526,454L525,453L525,453L526,452L527,453ZM626,508L626,509L625,509L625,508L625,508L625,508L626,508ZM604,491L603,491L602,491L602,491L603,490L603,490L604,490ZM505,502L505,502L504,502L504,502L505,501L505,500L506,500L506,501ZM401,387L401,387L400,386L398,385L399,385L400,385L401,385L401,386ZM375,338L375,338L374,338L373,337L374,336L374,337L375,337L375,337ZM747,437L746,437L745,436L745,434L746,434L746,434L746,435L747,435L747,436ZM742,468L741,470L740,470L739,469L739,468L739,467L739,467L742,467L742,468ZM750,440L750,441L750,441L749,440L749,439ZM741,438L740,439L740,439L740,438L740,438L741,438ZM693,530L692,530L692,530L692,529L691,528L692,527L692,526L692,526L693,526L693,526L693,526L694,526L694,527L694,527L694,528L693,528L692,529ZM687,523L687,523L687,523L687,522L687,522L688,522L688,522L688,523L688,523ZM642,530L641,531L640,530L640,529L641,529L641,529L642,529ZM669,359L670,359L672,359L672,360L672,361L670,362L668,360ZM669,371L669,372L667,370L667,370L667,369L668,369L669,369ZM753,493L753,494L752,493L752,493L752,492L753,492ZM747,484L747,485L747,485L746,485L746,484L746,484L746,483ZM710,508L708,508L708,508L708,507L709,507L710,508ZM667,525L667,525L667,525L667,524L666,523L667,522L667,522L669,522L669,522ZM653,460L652,462L651,461L652,459L653,459ZM797,404L796,404L796,404L795,404L796,403L796,403L796,403ZM825,417L825,417L824,416L823,415L822,414L825,416ZM798,414L798,415L797,414L797,414L797,413L797,412L798,413ZM797,406L797,406L797,406L797,405L797,405L797,405L798,405L798,405ZM796,425L796,425L794,425L794,424L795,422L795,422L796,424ZM814,461L814,462L814,462L814,462L813,462L813,461L813,460L814,461L814,461ZM812,462L810,462L811,461L811,461L812,461ZM788,363L788,364L787,363L787,361L788,362L788,363ZM790,365L790,365L789,364L789,364L789,364L789,363L790,364L790,364ZM771,379L771,380L770,378L771,377L771,378L771,378L771,379ZM814,509L813,509L812,509L812,508L813,508L813,508L814,508L814,508L814,509ZM797,515L796,515L797,514L797,513L798,514L798,514L798,515ZM745,551L743,551L743,550L744,549L745,548L746,549L746,549L744,550ZM724,555L724,555L722,554L722,554L723,553L724,552L725,552L726,553L726,554ZM805,453L804,454L803,454L803,454L804,453ZM800,458L800,459L799,458L798,458L799,457L799,457ZM739,527L738,528L738,528L738,527L738,527L739,526L740,526L741,526L741,526L739,527Z"/><path d="M182,-6L183,-5L185,-4L186,-4L186,-2L186,-3L185,-3L184,-2L184,-2L182,0L181,1L180,2L178,4L177,6L176,9L176,10L176,12L175,13L175,14L174,15L174,17L174,18L175,18L176,19L177,20L179,21L179,21L180,21L180,20L181,20L182,21L183,22L183,22L185,23L186,24L188,25L189,26L189,27L190,27L193,29L195,30L196,31L197,32L198,32L199,32L199,31L200,32L201,32L203,34L205,35L208,35L208,35L209,36L209,37L212,38L213,38L215,39L216,39L217,39L218,38L218,38L220,38L222,39L223,39L224,39L226,38L227,38L229,39L232,40L234,41L234,41L234,42L234,44L235,44L238,46L239,47L240,47L241,47L241,47L241,48L241,48L242,49L243,49L245,48L246,47L247,47L248,48L248,49L249,50L249,51L250,51L252,50L254,51L255,51L257,51L257,51L259,52L261,53L262,53L265,51L266,52L266,53L267,54L269,54L271,53L272,54L274,54L275,53L276,53L278,54L279,54L279,53L280,51L281,49L280,48L280,46L278,44L278,43L279,39L279,37L280,35L280,34L280,33L280,32L280,32L280,32L280,31L280,31L282,31L284,30L285,30L285,29L286,29L287,29L288,29L289,30L289,31L290,32L289,34L288,37L288,39L289,40L290,40L290,41L288,42L288,42L288,43L289,43L289,44L290,46L290,46L292,47L293,48L296,47L297,47L298,48L299,48L299,48L300,48L300,49L300,49L301,49L302,49L304,49L306,49L307,47L308,47L309,47L311,47L312,48L313,48L314,48L316,48L320,48L322,48L323,47L324,47L325,48L327,48L328,47L329,47L330,47L330,47L331,47L332,47L332,46L332,45L331,44L331,44L331,43L331,43L331,42L332,41L332,40L331,38L330,38L329,38L328,38L327,38L326,37L325,36L326,35L326,34L326,34L327,34L329,34L330,34L331,34L332,33L333,33L334,33L334,32L335,33L336,33L336,33L337,32L338,32L340,31L340,30L340,30L340,29L340,29L340,29L340,28L343,27L345,25L346,24L346,23L347,21L348,21L349,20L353,20L354,19L356,18L357,17L358,17L358,16L359,15L360,14L361,13L363,12L366,10L366,11L367,11L367,12L367,12L370,13L371,13L372,14L374,14L375,15L376,15L376,14L377,14L377,13L377,13L377,12L380,10L382,9L384,8L385,9L385,9L386,11L387,11L388,11L388,11L388,12L387,13L386,13L385,14L386,16L385,16L386,16L388,15L389,14L390,15L390,16L391,18L391,19L389,21L388,22L388,23L388,23L387,24L387,24L388,24L389,25L389,25L389,24L392,23L392,23L394,25L395,25L397,25L398,25L399,25L401,27L401,27L401,28L401,29L401,30L401,30L401,31L401,31L400,32L399,33L397,34L396,35L396,35L395,36L395,37L396,38L398,43L398,43L397,43L396,43L395,42L394,41L393,40L392,40L387,41L386,41L384,42L383,43L382,44L382,45L380,46L377,49L375,50L373,50L372,51L372,52L371,53L371,55L371,57L372,58L372,59L372,59L372,60L371,61L371,61L370,63L370,64L369,66L368,67L366,68L366,68L365,70L365,71L365,71L365,71L365,72L366,72L367,73L367,74L366,75L365,78L364,79L363,81L362,82L361,84L360,87L360,89L359,90L358,91L357,90L355,90L354,89L353,89L352,89L352,89L351,89L350,89L349,88L348,88L348,88L349,92L350,93L350,95L349,98L349,101L349,102L348,103L348,103L347,103L346,103L346,103L346,104L346,106L345,107L345,108L346,110L346,112L346,113L346,114L346,114L345,114L345,115L344,115L344,117L343,117L342,117L341,116L341,115L340,115L340,116L340,117L339,117L339,118L338,117L338,111L338,110L337,108L337,107L337,106L336,105L336,104L336,102L335,100L335,98L335,96L334,93L333,93L333,93L333,93L332,93L331,93L330,93L330,94L330,96L330,96L328,98L328,99L328,100L328,102L328,102L327,103L326,103L325,103L325,103L324,101L324,100L323,100L323,100L323,101L323,102L323,102L322,102L322,102L321,98L320,95L320,94L320,92L321,90L322,88L322,88L323,87L323,87L325,87L325,87L326,86L327,86L327,86L328,86L329,86L329,86L330,85L330,84L330,84L331,83L332,83L332,83L332,83L333,82L334,79L334,78L334,77L334,76L334,76L336,76L337,76L337,76L337,76L337,75L336,74L334,73L332,72L328,72L324,72L323,72L322,72L318,72L314,72L313,72L312,72L310,72L308,72L306,71L305,70L303,70L302,70L302,70L302,69L302,69L302,66L302,62L302,61L301,57L300,57L300,56L299,57L299,58L299,59L299,60L298,60L296,60L295,59L294,58L293,57L293,55L292,54L292,54L291,54L291,54L291,54L291,55L291,55L291,56L291,56L290,56L289,56L288,56L288,56L287,55L287,54L287,53L285,52L284,51L283,51L283,52L283,53L283,53L284,53L284,54L284,54L283,55L283,56L281,57L280,58L280,59L280,60L279,61L280,62L280,62L282,63L283,64L284,66L285,66L286,67L288,67L289,68L289,69L290,69L291,70L291,70L291,71L290,71L289,72L288,72L287,72L286,72L284,72L283,75L282,76L282,76L281,75L280,75L279,78L279,79L279,80L279,81L280,82L281,82L282,82L283,82L284,83L285,84L287,84L288,85L288,85L288,86L288,88L288,89L287,91L286,93L286,94L286,95L287,95L288,96L288,97L288,99L288,99L289,100L290,100L291,100L290,102L290,104L290,105L291,108L291,108L290,108L291,110L292,113L292,115L292,116L292,118L291,118L292,120L292,121L292,122L291,122L290,122L290,121L289,122L288,123L288,123L288,122L287,121L288,117L288,117L288,117L287,116L287,116L286,120L286,121L286,122L284,123L282,121L282,121L282,122L282,123L280,122L279,122L280,120L281,117L281,115L280,114L278,114L278,112L278,114L279,114L279,115L280,116L280,117L279,117L278,120L276,121L274,122L268,124L267,124L265,126L263,128L263,130L264,132L264,135L265,136L264,137L263,138L262,140L262,141L262,141L259,143L258,144L257,145L256,145L255,145L256,146L256,146L256,147L255,147L250,148L246,150L245,150L246,149L246,149L246,147L245,147L245,147L242,149L241,151L241,151L242,151L244,150L245,150L245,151L242,152L236,158L236,159L235,160L234,161L232,164L228,168L227,169L221,172L220,173L218,176L215,179L212,181L207,183L204,186L203,187L203,188L203,189L204,190L204,190L204,191L204,192L203,193L201,194L196,196L196,196L192,196L190,196L189,197L188,201L187,203L186,204L186,204L185,204L184,204L184,204L183,203L182,202L182,202L178,204L177,205L174,210L174,214L174,217L175,220L175,222L175,223L175,224L175,225L175,227L176,230L176,231L176,232L177,235L177,235L176,233L175,232L174,233L175,235L177,236L178,237L176,246L175,249L174,251L173,252L171,255L170,259L170,261L170,263L170,264L169,264L170,264L171,265L171,266L171,272L171,278L170,278L169,278L168,278L167,278L165,278L164,279L163,280L163,282L160,286L159,288L159,289L159,290L160,291L161,291L164,292L165,292L165,293L163,292L160,292L152,294L150,295L149,297L149,300L148,302L148,304L144,306L141,307L140,308L138,307L134,304L133,303L129,297L128,297L127,294L127,293L126,293L126,293L126,292L125,289L124,286L124,283L124,283L125,284L125,286L125,288L126,288L126,288L125,283L124,282L123,282L123,281L123,280L123,279L122,278L122,277L119,271L118,268L117,264L116,262L114,259L113,258L111,256L110,255L110,254L106,248L105,244L105,242L104,241L103,235L103,234L103,233L102,230L101,228L100,226L100,225L99,223L99,221L98,220L98,219L97,219L95,216L95,215L93,214L93,210L91,209L93,209L92,208L92,207L91,207L92,206L91,206L90,205L89,203L87,200L87,199L85,195L84,184L83,180L83,179L82,175L81,172L81,170L80,168L80,165L79,164L79,164L80,163L81,160L81,159L81,157L80,159L79,160L78,158L78,156L78,156L78,155L81,156L78,154L78,154L78,153L78,152L77,151L77,149L77,148L77,148L77,144L79,138L80,136L79,134L79,132L79,130L78,130L78,130L77,129L76,126L77,125L77,125L77,125L76,125L77,124L78,123L81,122L82,121L81,122L79,122L75,122L76,119L76,118L77,118L76,118L75,118L75,115L76,114L77,114L78,114L77,114L76,113L74,114L72,113L70,113L71,114L72,115L71,116L71,117L70,118L69,118L69,119L68,120L69,120L70,121L71,121L71,122L71,124L69,128L68,129L62,132L60,133L55,135L53,135L51,135L48,134L43,130L42,129L38,124L35,122L33,120L31,117L28,115L28,113L28,112L29,111L30,111L31,113L31,113L32,113L36,111L37,112L38,111L39,111L41,110L43,109L44,109L46,106L47,103L48,103L48,102L48,102L47,102L47,103L46,103L46,104L45,103L44,104L43,104L39,105L38,106L37,106L31,105L26,102L24,100L22,98L21,95L21,94L23,92L25,91L24,91L22,92L21,93L20,94L18,95L18,93L17,91L17,91L18,90L19,90L20,89L22,89L23,89L25,89L25,85L25,84L25,84L25,84L26,84L26,85L26,85L27,84L28,85L29,85L30,85L31,85L34,85L36,85L37,85L38,86L39,86L41,86L42,86L42,85L43,85L45,84L48,83L49,83L49,83L49,84L49,85L50,85L51,85L52,85L52,85L53,84L54,83L54,84L55,83L55,83L55,82L54,82L54,81L54,80L54,80L55,79L55,79L55,78L54,76L53,73L52,71L51,69L50,68L50,65L50,65L50,64L49,64L48,64L47,64L46,64L45,64L43,61L42,60L42,59L43,57L43,55L43,53L43,52L43,52L42,51L40,51L38,50L36,49L35,49L35,48L34,48L35,46L35,43L36,42L36,42L37,41L38,40L40,38L42,35L43,32L44,32L45,31L46,30L47,30L48,30L49,30L50,31L50,33L51,34L51,34L52,34L53,34L57,33L58,32L62,32L64,31L66,31L66,29L67,27L69,25L70,24L71,22L72,20L72,19L76,17L80,15L80,14L83,10L84,7L84,6L85,3L86,1L87,0L90,-1L92,-1L93,-2L93,-3L93,-4L93,-5L93,-6L182,-6ZM356,324L355,325L354,322L353,322L353,320L353,319L355,319L355,319L356,322ZM354,317L353,318L352,318L352,317L353,317L353,316ZM346,305L346,306L346,306L345,305L345,304L345,304ZM350,310L349,310L349,310L348,309L349,309L349,308L350,309L350,310ZM351,308L351,308L350,308L350,308L350,308L350,307L350,306L351,306L351,306L351,307ZM341,294L341,294L340,293L340,293L341,292L341,292L341,292L342,293ZM338,275L337,275L336,275L336,273L336,272L336,271L337,270L338,270L338,271L339,273ZM340,263L340,264L339,263L339,263L339,262L340,262L340,263ZM341,261L340,262L340,261L339,259L338,257L338,257L338,256L339,256L339,255L339,254L340,253L340,252L341,252L341,252L341,251L341,251L341,250L341,248L341,247L341,246L341,245L341,244L342,243L342,242L342,241L342,239L342,237L343,235L345,234L345,234L345,236L345,236L344,237L345,238L345,239L345,240L344,240L344,241L343,242L343,242L344,244L344,248L343,249L342,249L343,252L342,253L342,254L341,255L341,255L341,256L342,256L342,257L341,258L341,260ZM344,255L345,257L344,256L344,255L344,255ZM340,244L340,244L340,243L340,242L340,242L341,242ZM78,266L78,266L78,266L78,265L78,265L78,265L78,265L78,266ZM82,305L82,305L81,305L81,305L81,305L81,305L81,305L82,305L82,305L82,304L82,305L82,305Z"/><path d="M476,265L476,265L476,265L476,265L476,264L476,263L476,263ZM480,272L479,273L479,272L479,272ZM535,219L536,219L535,221L534,222L533,223L533,224L533,226L533,227L533,228L534,228L535,231L535,233L536,235L536,236L536,239L535,241L535,243L535,244L536,246L536,248L536,249L535,250L534,251L534,252L533,251L532,251L531,251L531,251L529,253L528,254L525,254L525,255L524,256L522,256L521,256L521,256L521,259L521,259L521,259L520,259L518,259L517,259L515,258L515,259L514,260L514,260L513,260L513,261L513,261L513,262L513,264L513,265L514,265L517,268L517,268L518,268L517,270L517,271L517,271L515,271L514,270L514,270L513,270L513,270L512,269L511,269L510,269L508,269L508,269L507,269L506,271L506,270L504,270L503,270L502,270L503,271L503,272L503,273L502,273L501,274L500,275L500,275L498,275L496,275L496,276L495,276L495,276L492,275L488,274L488,273L487,273L487,274L485,275L484,275L483,274L483,273L484,272L485,272L485,270L484,268L484,267L483,267L482,267L481,269L480,270L479,270L478,270L477,268L477,266L477,264L477,262L476,261L476,259L475,258L475,259L475,259L475,259L472,254L472,252L472,250L473,249L472,249L471,247L469,246L469,244L469,241L468,241L467,239L467,238L467,234L467,234L468,234L470,234L470,233L470,233L471,232L472,230L473,229L474,227L475,226L476,225L478,224L480,223L481,223L483,222L484,222L486,223L487,223L488,223L489,223L490,223L492,223L494,223L497,223L499,222L501,223L502,223L502,224L502,225L503,225L503,225L504,224L504,224L505,223L505,224L505,225L505,225L506,226L507,227L507,227L509,226L512,227L512,227L513,228L514,229L516,229L517,227L517,226L515,225L515,223L515,223L518,223L518,223L518,222L519,222L520,222L521,221L522,220L522,221L523,221L523,222L524,222L525,223L526,224L526,224L527,224L528,224L528,223L529,222L529,222L530,222L531,221L532,220L532,220L533,221L534,221L535,219Z"/><path d="M438,141L436,140L436,140L435,140L434,140L433,141L433,141L432,141L430,141L429,140L429,141L430,142L430,143L430,143L429,144L428,144L428,144L427,144L426,144L425,144L424,144L424,144L423,145L423,147L423,148L422,149L422,149L421,149L420,149L417,150L416,150L415,150L414,150L413,150L411,149L411,149L410,149L410,150L409,151L408,153L407,156L407,158L406,160L406,160L407,165L407,165L406,165L406,166L404,166L404,166L403,167L402,166L402,166L402,167L403,168L404,169L405,169L405,169L405,170L405,171L406,173L407,174L406,176L406,176L406,176L407,178L409,180L411,182L412,184L413,185L416,188L416,189L416,191L417,192L417,193L418,194L419,196L419,197L421,195L421,195L422,196L422,197L421,198L421,198L418,200L418,202L417,204L417,207L417,209L417,210L417,210L416,210L414,211L414,211L413,211L413,212L412,213L413,215L413,217L414,219L415,220L417,222L418,223L420,225L422,227L423,229L424,231L425,232L425,234L425,235L425,239L425,239L425,240L425,241L425,242L425,243L426,245L427,246L428,247L429,248L428,249L429,250L429,251L429,253L430,254L431,258L431,259L431,259L430,260L429,260L429,261L428,263L426,267L423,270L422,271L420,273L420,273L420,274L420,275L420,276L420,277L419,278L419,279L419,280L417,282L417,281L417,280L417,277L416,273L417,272L417,272L418,270L419,269L419,267L420,265L420,264L420,263L420,262L420,261L420,260L422,259L421,259L421,258L419,259L418,259L418,258L418,257L419,256L419,256L419,255L419,253L419,252L418,252L418,252L418,251L419,250L418,249L419,248L419,246L418,245L418,244L418,242L418,240L416,238L416,235L413,232L413,230L413,229L413,228L412,233L411,232L411,230L411,228L411,226L410,224L410,222L409,219L409,219L410,219L409,218L408,218L408,216L407,212L407,210L407,209L406,203L405,201L405,199L405,197L405,195L406,194L406,193L406,193L405,194L403,194L402,194L401,192L400,191L400,189L399,186L399,186L398,185L398,184L396,183L395,182L395,182L396,183L395,184L396,187L395,188L394,190L394,191L392,193L390,194L389,194L388,194L387,193L387,192L387,190L387,190L386,190L387,192L387,193L388,195L388,195L385,196L385,196L384,196L384,197L384,197L381,199L380,200L379,201L378,203L376,205L375,205L374,204L375,203L375,201L375,200L375,200L373,203L373,203L372,203L370,203L369,201L369,200L369,200L369,199L369,198L369,199L369,200L368,201L366,202L366,201L366,200L366,199L366,198L367,195L367,195L367,194L366,195L366,196L366,197L365,197L364,198L363,200L361,201L360,201L360,199L361,194L362,193L362,192L363,189L363,188L364,185L364,185L365,183L365,179L365,178L364,176L363,171L361,166L361,165L360,163L361,163L359,162L358,161L358,157L358,155L358,156L357,157L357,157L357,160L357,160L356,161L355,160L353,159L352,157L351,154L351,154L352,154L354,156L355,156L356,156L357,155L357,153L357,153L356,152L355,152L354,151L354,150L354,150L353,149L352,149L353,148L353,147L352,147L350,145L350,145L349,145L347,145L346,145L347,147L347,148L346,147L344,144L345,144L345,143L345,143L344,143L345,140L345,140L344,141L344,141L343,143L342,143L341,143L342,142L342,141L343,141L342,140L341,139L341,138L340,138L341,139L341,141L339,139L336,135L335,134L335,133L335,132L335,131L334,131L334,130L334,129L333,127L334,126L335,125L335,125L336,126L337,126L338,127L339,128L339,128L339,127L339,127L339,125L339,123L339,118L339,118L339,117L340,117L340,116L340,115L341,115L341,116L342,117L343,117L344,117L344,115L345,115L345,114L346,114L346,114L346,113L346,112L346,110L345,108L345,107L346,106L346,104L346,103L346,103L347,103L348,103L348,103L349,102L349,101L349,98L350,95L350,93L349,92L348,88L348,88L349,88L350,89L351,89L352,89L352,89L353,89L354,89L355,90L357,90L358,91L359,90L360,89L360,87L361,84L362,82L363,81L364,79L365,78L366,75L367,74L367,73L366,72L365,72L365,71L365,71L365,71L365,70L366,68L366,68L368,67L369,66L370,64L370,63L371,61L371,61L372,60L372,59L372,59L372,58L371,57L371,55L371,53L372,52L372,51L373,50L375,50L377,49L380,46L382,45L382,44L383,43L384,42L386,41L387,41L392,40L393,40L394,41L395,42L396,43L397,43L398,43L398,43L396,38L395,37L395,36L396,35L396,35L397,34L399,33L400,32L401,31L401,31L401,30L401,30L401,29L401,28L401,27L402,26L403,25L403,24L403,23L404,22L405,22L406,23L406,23L406,24L407,25L408,25L408,25L409,25L409,25L410,27L411,27L411,28L412,29L412,31L413,35L414,36L414,37L415,37L415,36L415,35L416,35L417,35L418,36L419,36L419,39L419,41L419,42L419,44L420,47L420,48L420,49L420,51L419,53L419,55L419,57L419,58L418,58L417,59L418,60L419,61L419,62L418,62L417,62L416,63L415,64L414,66L414,66L412,66L412,66L411,68L411,69L410,70L410,70L409,71L408,71L407,72L406,74L406,75L407,76L406,77L406,77L405,78L404,80L404,82L404,82L405,83L406,83L406,84L406,85L406,87L404,89L404,90L405,90L406,90L407,90L408,89L410,88L413,87L415,87L417,87L417,87L418,88L420,87L421,87L421,87L421,87L419,89L419,90L419,91L420,92L420,92L421,94L420,96L421,96L421,97L422,98L422,99L421,100L424,101L426,102L428,102L429,102L429,102L430,103L430,104L429,104L428,106L428,108L428,109L428,110L426,112L426,113L425,115L425,115L426,116L426,116L427,116L428,116L431,116L434,117L435,117L436,117L436,119L435,120L436,121L436,122L437,122L438,122L438,123L438,124L438,124L438,125L439,125L441,124L442,125L443,125L444,125L445,124L447,122L450,121L451,121L451,121L451,121L451,121L451,123L451,123L451,125L449,126L447,127L446,127L446,128L445,130L444,131L444,131L443,132L443,133L444,133L444,133L445,133L444,134L443,134L442,134L441,134L440,135L439,137L438,140ZM413,269L414,272L414,272L414,272L413,272L413,271L412,270L411,270L412,269L412,269ZM412,283L412,284L412,284L412,282L413,281L414,281L414,282L413,283ZM413,262L413,262L413,262L412,262L413,261L413,260L414,258L414,258L414,259L414,261L413,262ZM417,256L416,257L416,254L416,254L417,255L418,256L418,256ZM417,259L417,261L416,261L416,261L415,259L415,259L415,258L417,258ZM415,247L416,247L416,247L416,249L415,250L414,251L414,251L414,248L414,247L414,246L415,246ZM412,253L412,253L411,253L411,253L410,252L411,251L411,251L411,251L412,251L412,252L412,252L412,253ZM364,202L363,203L362,201L364,200L365,199L365,198L365,199L365,201ZM404,197L404,198L403,197L403,195L404,194L404,194L404,194L405,195L405,195L405,195ZM353,164L353,164L352,163L351,161L352,161L354,161L354,162L354,163ZM351,147L351,149L350,148L350,147L350,146ZM354,152L355,153L356,153L357,154L357,154L356,154L356,155L355,155L354,155L354,154L353,153L353,153L353,152ZM417,269L417,269L417,269L416,269L417,267ZM411,259L411,260L410,259L410,257L411,258L411,259ZM411,250L411,250L410,251L409,251L409,251L410,250L411,250L411,250ZM414,240L414,243L413,241L413,240L413,239L413,239L414,239L414,240ZM368,203L368,204L367,203L367,203L368,202L368,202ZM344,147L344,148L344,147L343,146L343,144L344,145Z"/></g>
+  <g class="pin"><circle cx="442.9" cy="231.5" r="4"/><text x="454.9" y="221.5" text-anchor="start"><tspan class="pl">Thailand</tspan><tspan class="ps" x="454.9" dy="20">nam dok anchan · blue tea</tspan></text></g>
+  <g class="pin"><circle cx="465.3" cy="333.9" r="4"/><text x="477.3" y="337.9" text-anchor="start"><tspan class="pl">Kelantan, Malaysia</tspan><tspan class="ps" x="477.3" dy="20">nasi kerabu · blue rice</tspan></text></g>
+  <g class="pin"><circle cx="487.0" cy="397.2" r="4"/><text x="499.0" y="415.2" text-anchor="start"><tspan class="pl">Singapore</tspan><tspan class="ps" x="499.0" dy="20">Peranakan kuih · for prayer</tspan></text></g>
+  <g class="pin"><circle cx="127.0" cy="214.6" r="4"/><text x="115.0" y="204.6" text-anchor="end"><tspan class="pl">India</tspan><tspan class="ps" x="115.0" dy="20">Ayurveda · memory & calm</tspan></text></g>
+  <g class="pin"><circle cx="573.2" cy="514.6" r="4"/><text x="561.2" y="532.6" text-anchor="end"><tspan class="pl">Java</tspan><tspan class="ps" x="561.2" dy="20">natural dye · cloth & food</tspan></text></g>
+  <g class="m-compass" transform="translate(764 52)"><path d="M0 -26 L5 0 L0 26 L-5 0 Z"/><text y="-32" text-anchor="middle">N</text></g>
+</svg>
+            <figcaption class="cap"><i class="key"></i> Where butterfly pea is grown, brewed and dyed with</figcaption>
+          </figure>
+          <div class="flower-text">
+            <p class="cap">Clitoria ternatea · South &amp; Southeast Asia</p>
+            <p>For centuries, butterfly pea has been steeped, eaten and dyed with across South and Southeast Asia. In Thailand it is poured as a blue tea that blushes pink with a squeeze of lime. In Malaysian and Peranakan kitchens it colors rice and sweets made for prayer and remembrance. Ayurveda keeps it as a gentle tonic for memory and calm.</p>
+            <figure class="cutout small-cut"><img src="img/process/cut/ingredients.png" alt="Dried butterfly pea flowers, lemons and a strainer" loading="lazy"></figure>
+          </div>
+        </div>
+
+        <div class="carries">
+          <p class="cap carries-head">What it carries</p>
+          <ul>
+            <li><span class="cap">Memory</span><em>A card made to be kept.</em></li>
+            <li><span class="cap">Calm</span><em>A slow reveal, steeped by hand.</em></li>
+            <li><span class="cap">Ritual</span><em>Opening it becomes a ritual.</em></li>
+            <li><span class="cap">Color</span><em>The flower is the ink.</em></li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- II. the question -->
+      <section class="chapter center tone-blue">
+        <div class="ornate">
+          <span class="cap o-left">The guiding question</span>
+          <p class="o-q">How can the pH-reactive color of butterfly pea become an experience of <em>sensory relief</em>?</p>
+        </div>
+        <div class="lanes">
+          <p class="cap">Swim lanes</p>
+          <ul>
+            <li class="on">Wellness</li><li class="on">Experience</li><li class="on">Responsive color</li><li>Food &amp; beverage</li><li>Educational</li><li>Beauty</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- III. kitchen-table chemistry -->
+      <section class="chapter">
+        <header class="ch-head">
+          <p class="cap">Kitchen-table chemistry</p>
+          <h2 class="display">Lemon, soda and <em class="hi">pure tea</em></h2>
+        </header>
+        <figure class="cutout hero-cut"><img src="img/process/cut/ph-jars.png" alt="Six clear glasses of butterfly pea tea, from deep blue to pale pink as lemon juice is added" loading="lazy"></figure>
+        <div class="gallery mixed">
+          <figure class="photo wide"><img src="img/process/ph-cups.jpg" alt="Six glasses seen from above, blue through magenta to pale pink, with handwritten notes on lemon juice amounts" loading="lazy"><figcaption class="cap">0 to 10 parts lemon</figcaption></figure>
+          <figure class="photo"><img src="img/process/swatches.jpg" alt="Paper painted with blue, violet and green tea washes" loading="lazy"><figcaption class="cap">Swatches</figcaption></figure>
+          <figure class="photo wide"><img src="img/process/dyed-paper.jpg" alt="Sheets of pea-dyed paper drying on cardboard" loading="lazy"><figcaption class="cap">Dyed paper, drying</figcaption></figure>
+        </div>
+        <div class="two-col">
+          <div>
+            <p class="cap col-cap">Method</p>
+            <ol class="roman">
+              <li>One variable at a time.</li>
+              <li>Pure tea as the control.</li>
+              <li>Write everything down.</li>
+            </ol>
+          </div>
+          <div>
+            <p class="cap col-cap">Findings</p>
+            <ol class="roman">
+              <li>Past a point, more acid only dilutes.</li>
+              <li>Each acid reacts with its own strength.</li>
+              <li>Powder and dried flower behave differently.</li>
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      <!-- IV. your turn -->
+      <section class="chapter tone-blue">
+        <header class="ch-head">
+          <p class="cap">Your turn</p>
+          <h2 class="display">We handed our classmates a brush</h2>
+        </header>
+        <div class="gallery g3 turn">
+          <figure class="photo"><img src="img/process/social-1.jpg" alt="Hands around a table, painting acid onto pea-dyed cards" loading="lazy"></figure>
+          <figure class="photo"><img src="img/process/social-3.jpg" alt="Hands brushing acid onto a blue card" loading="lazy"></figure>
+          <figure class="cutout"><img src="img/process/cut/painted-cards.png" alt="Painted blue cards beside cups of tea, acid and base" loading="lazy"></figure>
+        </div>
+        <div class="words" aria-label="Words we heard">
+          <span>cool</span><span>beautiful</span><span>zen</span><span>therapeutic</span><span class="big">“I want to keep it”</span>
+        </div>
+        <div class="insight">
+          <p class="display-s">They wanted to <em>keep</em> it. So it became a keepsake.</p>
+        </div>
+      </section>
+
+      <!-- V. kind words -->
+      <section class="chapter">
+        <header class="ch-head">
+          <p class="cap">Kind words</p>
+          <h2 class="display">What people <em class="hi">said</em></h2>
+        </header>
+        <div class="reviews">
+          <figure class="review r-tape" style="--tilt:-1.5deg">
+            <p class="stars" aria-label="five stars">★★★★★</p>
+            <blockquote>It’s a color that makes you feel like everything will be okay! It’s more than just blue!</blockquote>
+            <figcaption class="cap">a printmaker</figcaption>
+          </figure>
+          <figure class="review big" style="--tilt:1deg">
+            <p class="stars" aria-label="five stars">★★★★★</p>
+            <blockquote>People appreciate the magic and ephemerality of anthotypes. It’s fascinating to see color made from plants, so simple and everyday yet unknown to the average person.</blockquote>
+            <figcaption class="cap">an anthotype artist</figcaption>
+          </figure>
+          <figure class="review hand" style="--tilt:2deg">
+            <blockquote>“I want to keep it.”</blockquote>
+            <figcaption class="cap">a classmate, holding their card</figcaption>
+          </figure>
+          <figure class="review" style="--tilt:-.8deg">
+            <p class="stars" aria-label="five stars">★★★★★</p>
+            <blockquote>Butterfly pea flower tea powder makes excellent anthotypes!</blockquote>
+            <figcaption class="cap">an anthotype artist</figcaption>
+          </figure>
+          <figure class="review r-tape" style="--tilt:1.4deg">
+            <p class="stars" aria-label="five stars">★★★★★</p>
+            <blockquote>Especially in color darkroom prints, it does have its own magic when observing the process.</blockquote>
+            <figcaption class="cap">a photographer</figcaption>
+          </figure>
+          <figure class="review hand words-card" style="--tilt:-2deg">
+            <blockquote>cool · beautiful · zen · therapeutic</blockquote>
+            <figcaption class="cap">words from the classroom</figcaption>
+          </figure>
+          <figure class="review" style="--tilt:.6deg">
+            <p class="stars" aria-label="five stars">★★★★★</p>
+            <blockquote>Color in general is very calming.</blockquote>
+            <figcaption class="cap">a printmaker</figcaption>
+          </figure>
+          <figure class="review" style="--tilt:-1deg">
+            <p class="stars" aria-label="five stars">★★★★★</p>
+            <blockquote>I often call anthotype the cousin of better known cyanotype.</blockquote>
+            <figcaption class="cap">an anthotype artist</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <!-- VI. prototypes -->
+      <section class="chapter">
+        <header class="ch-head">
+          <p class="cap">Prototypes</p>
+          <h2 class="display">Material, then <em class="hi">experience</em></h2>
+        </header>
+        <div class="proto">
+          <div class="proto-mat">
+            <div class="gallery g2 wide-first">
+              <figure class="photo wide"><img src="img/process/material-2.jpg" alt="Rabbit stamp prints on dyed and white paper" loading="lazy"></figure>
+              <figure class="photo"><img src="img/process/material-1.jpg" alt="Two rabbit prints, one labelled BPF" loading="lazy"></figure>
+            </div>
+            <p class="cap col-cap">Material</p>
+            <p>Stamps on dyed paper.</p>
+          </div>
+          <div class="proto-exp">
+            <div class="gallery g2 wide-last">
+              <figure class="cutout"><img src="img/process/cut/letter-envelopes.png" alt="Small kraft envelopes with blue drawings" loading="lazy"></figure>
+              <figure class="photo wide"><img src="img/process/letter-reaction.jpg" alt="The hand-drawn portrait a friend received" loading="lazy"></figure>
+            </div>
+            <p class="cap col-cap">Experience</p>
+            <p>A surprise letter, theirs alone.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- VII. why it works -->
+      <section class="chapter chem" id="chemistry">
+        <header class="ch-head">
+          <p class="cap">Why it works</p>
+          <h2 class="display">The chemistry of a <em class="hi">hidden note</em></h2>
+        </header>
+        <div class="split-body">
+          <div class="prose">
+            <p>The blue comes from <strong>ternatins</strong>, anthocyanin pigments in the petals whose structure shifts with pH. Each shape absorbs light differently, so the tea changes color as acidity changes.</p>
+            <p>At neutral pH the tea reads blue. Add acid and it turns violet, then pink. A base such as baking soda pushes it toward green.</p>
+            <p>Our ink is clear citric acid. Where it sits on the paper, the tea turns pink, and everywhere else stays blue.</p>
+          </div>
+          <div class="ph">
+            <div class="ph-bar" role="img" aria-label="Color of butterfly pea tea across pH 2 to 12: pink, magenta, violet, blue, teal, green, yellow"></div>
+            <div class="ph-ticks"><span>2</span><span>4</span><span>6</span><span>7</span><span>8</span><span>10</span><span>12</span></div>
+            <div class="ph-marks">
+              <span style="--at:2%">lemon</span>
+              <span style="--at:8%" class="low">vinegar</span>
+              <span style="--at:50%">the tea</span>
+              <span style="--at:63%" class="low">baking soda</span>
+            </div>
+          </div>
+        </div>
+
+        <ol class="card-steps">
+          <li>
+            <div class="mini-card plain"><span class="ghost">dear june</span></div>
+            <p class="cap">01 · Print</p>
+            <p>Clear citric acid ink.</p>
+          </li>
+          <li>
+            <div class="mini-card brush"><span class="ghost">dear june</span></div>
+            <p class="cap">02 · Steep</p>
+            <p>Brush or dip in pea tea.</p>
+          </li>
+          <li>
+            <div class="mini-card bloom"><span>dear june</span></div>
+            <p class="cap">03 · Bloom</p>
+            <p>The words turn pink.</p>
+          </li>
+        </ol>
+      </section>
+
+      <!-- VIII. next -->
+      <section class="chapter center next tone-blue">
+        <p class="cap">What comes next</p>
+        <p class="script wc">a full postcard set</p>
+        <ul class="next-list">
+          <li>Card, ink, stamps, packaging</li>
+          <li>Print-ready ink</li>
+          <li>This website</li>
+        </ul>
+        <button class="btn" type="button" data-go="inside">Try the booth</button>
+      </section>
+
+      <details class="sources">
+        <summary class="cap">Works cited</summary>
+        <ol>
+          <li>Royal Botanic Gardens, Kew. “Clitoria ternatea L.” <em>Plants of the World Online</em>.</li>
+          <li>Kantasrila et al. “Ethnobotanical Study of Wild Edible Plants in Pa Tio District, Thailand.” <em>Journal of Ethnobiology and Ethnomedicine</em>, 2025.</li>
+          <li>Mukherjee et al. “The Ayurvedic Medicine Clitoria ternatea: From Traditional Use to Scientific Assessment.” <em>Journal of Ethnopharmacology</em>, 2008.</li>
+          <li>Peranakan Museum. “Aunty Kamala’s Pulut Inti and Tepung Gomak,” 2021.</li>
+          <li>Taif, Mohd Som and Mohd Yusof. “Extraction of Natural Dyes from Clitoria ternatea Flower,” 2017.</li>
+          <li>Vidana Gamage et al. “Anthocyanins from Clitoria ternatea Flower.” <em>Frontiers in Plant Science</em>, 2021.</li>
+          <li>Fu et al. “Spectral Characteristic, Storage Stability and Antioxidant Properties of Anthocyanin Extracts from Butterfly Pea.” <em>Molecules</em>, 2021.</li>
+          <li>Alizadeh-Sani et al. “Application of Red Cabbage Anthocyanins as pH-Sensitive Pigments in Smart Food Packaging.” <em>Foods</em>, 2022.</li>
+          <li>Chen et al. “Application of Butterfly Pea Flower Extract in Mask Development.” <em>Scientia Pharmaceutica</em> 86, no. 4 (2018).</li>
+          <li>Hasanah et al. “Development of pH Indicator Film Containing Butterfly Pea Flower Anthocyanin.” <em>Next Materials</em> 9 (2025).</li>
+          <li>Hasanah et al. “A Systematic Review of Butterfly Pea Flower: Extraction and Application as a Food Freshness pH-Indicator.” <em>Polymers</em> 15, no. 11 (2023).</li>
+          <li>Naimi et al. “Teaching Acid–Base Fundamentals and Introducing pH Using Butterfly Pea Flower Tea.” <em>Journal of Chemical Education</em> 101, no. 3 (2024).</li>
+          <li>Narayanan et al. “Butterfly Pea Flower Anthocyanin-Incorporated Colorimetric Indicator Film Based on Gelatin/Pectin.” <em>Food Hydrocolloids for Health</em> 4 (2023).</li>
+          <li>Suwarmi et al. “Formulation of Butterfly Pea Flower Kombucha Gel and Burn Wound Healing Test.” <em>E3S Web of Conferences</em> 706 (2026).</li>
+        </ol>
+      </details>
+
+      <footer class="foot">
+        <span class="cap">Pea Booth © 2026</span>
+        <span class="cap">Ashley · Chamonix · Christian</span>
+        <a class="cap" href="#" data-go="outside">Back to the booth ↑</a>
+      </footer>
+    </div>
+  </section>
+
+</main>
+
+<!-- curtain wipe between scenes -->
+<div class="wipe" id="wipe" aria-hidden="true"><div class="half l"></div><div class="half r"></div><div class="rod"></div></div>
+
+
+<!-- print-only sheet -->
+<div id="printSheet" aria-hidden="true"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
