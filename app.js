@@ -141,8 +141,12 @@
     majority: 1,      // radius of the majority filter that cleans ragged edges
     cleanPasses: 1,   // how many times it runs; more = smoother but loses thin lid lines
     minArea: 0.00013, // holes smaller than this share of the image are filled in (≈ 0.7 mm; keeps eye whites)
-    minPiece: 0.0003, // loose dark bits smaller than this are dropped; bigger ones get a bridge
-    bridgeMm: 0.8,    // bridge width that ties loose pieces back to the sheet
+    minPiece: 0.00012,// loose dark bits smaller than this are dropped (≈ 0.6 mm²)
+    looseMax: 0.0012, // small accents up to this size (nose shadow, nostrils) stay as separate
+                      // little pieces instead of getting a bridge across the face; bigger ones are bridged
+    bridgeMm: 1,      // bridge width that ties loose pieces back to the sheet
+    minLineMm: 1,     // thinnest stencil material allowed; thinner lines are thickened so card
+                      // stock holds its shape and doesn't tear when laser cut
     alongAxis: 4,     // how strongly bridges leave elongated shapes (lips, eyes) along their length
     skinCost: 12,     // extra cost for bridging across lit skin, so bridges keep to hair and shadow
     photoMm: 64,      // printed width of the photo on the 6 × 4 in card, to convert mm → px
@@ -218,7 +222,7 @@
     const paths = [];
     isles.sort((a, b) => b.px.length - a.px.length);
     isles.forEach((isle, g) => {
-      if (held[isle.id]) return;
+      if (held[isle.id] || isle.px.length < STENCIL.looseMax * n) return;
       g += 1;
       // shape of the island: centre and long axis (principal component)
       let cx = 0, cy = 0, sxx = 0, syy = 0, sxy = 0;
@@ -274,6 +278,41 @@
     }
   }
 
+  // no part of the stencil thinner than `width` px: find the centre line of each thin stroke
+  // (local maxima of the distance to the nearest hole) and redraw it at the minimum width
+  function thicken(m, w, h, width) {
+    const n = m.length, d = new Float32Array(n), r = width / 2, R = Math.ceil(r);
+    for (let p = 0; p < n; p++) d[p] = m[p] ? 1e9 : 0;
+    // two-pass chamfer distance (3-4), in pixels
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const p = y * w + x; if (!d[p]) continue;
+      let v = d[p];
+      if (x > 0) v = Math.min(v, d[p - 1] + 3);
+      if (y > 0) { v = Math.min(v, d[p - w] + 3); if (x > 0) v = Math.min(v, d[p - w - 1] + 4); if (x < w - 1) v = Math.min(v, d[p - w + 1] + 4); }
+      d[p] = v;
+    }
+    for (let y = h - 1; y >= 0; y--) for (let x = w - 1; x >= 0; x--) {
+      const p = y * w + x; if (!d[p]) continue;
+      let v = d[p];
+      if (x < w - 1) v = Math.min(v, d[p + 1] + 3);
+      if (y < h - 1) { v = Math.min(v, d[p + w] + 3); if (x < w - 1) v = Math.min(v, d[p + w + 1] + 4); if (x > 0) v = Math.min(v, d[p + w - 1] + 4); }
+      d[p] = v;
+    }
+    const ridge = [];
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+      const p = y * w + x, v = d[p];
+      if (!v || v / 3 >= r) continue;
+      if (v >= d[p - 1] && v >= d[p + 1] && v >= d[p - w] && v >= d[p + w] && v >= d[p - w - 1] && v >= d[p - w + 1] && v >= d[p + w - 1] && v >= d[p + w + 1]) ridge.push(p);
+    }
+    for (const p of ridge) {
+      const cx = p % w, cy = (p / w) | 0;
+      for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+        const x = cx + dx, y = cy + dy;
+        if (x >= 0 && y >= 0 && x < w && y < h && dx * dx + dy * dy <= r * r) m[y * w + x] = 1;
+      }
+    }
+  }
+
   // photo canvas → binary mask (1 = dark / blue / cut), at working resolution
   function stencilMask(photo) {
     const w = STENCIL.work, h = Math.round(w * photo.height / photo.width), n = w * h;
@@ -311,6 +350,7 @@
     dropIslands(m, w, h, 0, Math.round(n * STENCIL.minArea));
     dropIslands(m, w, h, 1, Math.round(n * STENCIL.minPiece));
     bridgeIslands(m, w, h, B, t, gauss(S, w, h, 2), STENCIL.bridgeMm * w / STENCIL.photoMm);
+    thicken(m, w, h, STENCIL.minLineMm * w / STENCIL.photoMm);
     return { m, w, h };
   }
 
