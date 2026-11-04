@@ -133,15 +133,18 @@
   const STENCIL = {
     work: 720,        // working width; all sizes below are in these pixels
     blur: 1,          // pre-threshold blur (3 box passes); bigger = rounder, simpler shapes
-    detail: 2.4,      // local contrast boost; higher pulls eyes, brows, lips out of the skin
-    local: 13,        // neighborhood radius for that boost (≈ the size of an eye socket)
+    detail: 1.4,      // local contrast boost; higher pulls eyes, brows, lips out of the skin
+    local: 40,        // neighborhood radius for that boost (≈ a cheek; small values give line drawings)
     fine: 2.2,        // second, fine-scale boost for eye detail: lids, iris, catchlight
     fineR: 3,         // neighborhood radius for the fine boost (≈ an iris)
     bias: -0.05,      // added to the auto (Otsu) threshold, -0.15…0.15; + = more blue
+    adapt: 0.7,       // 0 = one global threshold, 1 = fully local; mixes in shading inside the face
+    adaptR: 50,       // neighborhood radius for the local part (≈ a cheek)
+    adaptOffset: 0.035,// how much darker than its surroundings a patch must be to turn blue
     majority: 1,      // radius of the majority filter that cleans ragged edges
     cleanPasses: 1,   // how many times it runs; more = smoother but loses thin lid lines
     minArea: 0.00013, // holes smaller than this share of the image are filled in (≈ 0.7 mm; keeps eye whites)
-    minPiece: 0.00012,// loose dark bits smaller than this are dropped (≈ 0.6 mm²)
+    minPiece: 0.0002, // loose dark bits smaller than this are dropped (≈ 1 mm²)
     looseMax: 0.0012, // small accents up to this size (nose shadow, nostrils) stay as separate
                       // little pieces instead of getting a bridge across the face; bigger ones are bridged
     bridgeMm: 1,      // bridge width that ties loose pieces back to the sheet
@@ -232,6 +235,8 @@
       const ang = 0.5 * Math.atan2(2 * sxy, sxx - syy), ax = Math.cos(ang), ay = Math.sin(ang);
       const tr = sxx + syy, det = sxx * syy - sxy * sxy, l1 = tr / 2 + Math.sqrt(Math.max(0, tr * tr / 4 - det)), l2 = tr - l1;
       const aniso = STENCIL.alongAxis * Math.min(1, Math.max(0, (Math.sqrt(l1 / Math.max(l2, 1e-6)) - 1.2) / 1.5));
+      // the long-axis rule only holds close to the shape: leave from a corner, then go the short way
+      const near = Math.sqrt(3 * l1 / isle.px.length) + 12;
       hn = 0;
       for (const p of isle.px) { gen[p] = g; dist[p] = 0; from[p] = -1; push(0, p); }
       let end = -1;
@@ -246,7 +251,7 @@
           if (!m[q]) {
             const u = Math.max(0, tone[q] - t) / (1 - t);
             const vx = x + dx - cx, vy = y + dy - cy, r = Math.hypot(vx, vy) || 1;
-            const across = Math.abs(vx * ay - vy * ax) / r;   // 0 = along the long axis, 1 = straight across
+            const across = r < near ? Math.abs(vx * ay - vy * ax) / r : 0;   // 0 = along the long axis, 1 = straight across
             c = len * (0.15 + 10 * u * u + STENCIL.skinCost * skin[q] * u) * (1 + aniso * across);
           }
           const nd = dp + c;
@@ -337,8 +342,11 @@
     for (let p = 0; p < n; p++) B[p] = Math.min(1, Math.max(0, B[p] + (B[p] - M[p]) * STENCIL.detail + (B[p] - F[p]) * STENCIL.fine));
     for (let p = 0; p < n; p++) hist[Math.min(255, (B[p] * 255) | 0)]++;
     const t = otsu(hist, n) + STENCIL.bias;
+    // mix the global cut with the local brightness, so soft shading inside a lit face (cheek,
+    // under the eyes, beside the nose) becomes shapes, not just the hair/skin boundary
+    const A = gauss(B, w, h, STENCIL.adaptR), a = STENCIL.adapt;
     let m = new Uint8Array(n);
-    for (let p = 0; p < n; p++) m[p] = B[p] < t ? 1 : 0;
+    for (let p = 0; p < n; p++) m[p] = B[p] < (1 - a) * t + a * (A[p] - STENCIL.adaptOffset) ? 1 : 0;
     // a dark frame round the edge: the stencil's border, which holds every piece that reaches it
     for (let x = 0; x < w; x++) for (let k = 0; k < 3; k++) m[k * w + x] = m[(h - 1 - k) * w + x] = 1;
     for (let y = 0; y < h; y++) for (let k = 0; k < 3; k++) m[y * w + k] = m[y * w + w - 1 - k] = 1;
