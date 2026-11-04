@@ -148,7 +148,11 @@
     looseMax: 0.0012, // small accents up to this size (nose shadow, nostrils) stay as separate
                       // little pieces instead of getting a bridge across the face; bigger ones are bridged
     bridgeMm: 1,      // bridge width that ties loose pieces back to the sheet
-    minLineMm: 1,     // thinnest stencil material allowed; thinner lines are thickened so card
+    maxBridgeMm: 3,   // longest bridge allowed; a piece that can't reach the sheet that quickly stays loose
+    bridgeTone: 0.3,  // bridges may only cross shading this close to the threshold (0 = only near-dark)
+    scratchMm: 4,     // thin strokes on light skin longer than this are removed (stray hairs, creases)
+    minGapMm: 0.5,    // light gaps narrower than this are never closed by thickening (eye whites)
+    minLineMm: 0.9,   // thinnest stencil material allowed; thinner lines are thickened so card
                       // stock holds its shape and doesn't tear when laser cut
     alongAxis: 4,     // how strongly bridges leave elongated shapes (lips, eyes) along their length
     skinCost: 12,     // extra cost for bridging across lit skin, so bridges keep to hair and shadow
@@ -221,7 +225,8 @@
       for (;;) { let c = i * 2 + 1; if (c >= hn) break; if (c + 1 < hn && hk[c + 1] < hk[c]) c++; if (hk[c] >= k) break; hk[i] = hk[c]; hv[i] = hv[c]; i = c; }
       hk[i] = k; hv[i] = last; return v;
     };
-    const dist = new Float32Array(n), from = new Int32Array(n), gen = new Int32Array(n);
+    const dist = new Float32Array(n), glen = new Float32Array(n), from = new Int32Array(n), gen = new Int32Array(n);
+    const maxLen = STENCIL.maxBridgeMm * w / STENCIL.photoMm;
     const paths = [];
     isles.sort((a, b) => b.px.length - a.px.length);
     isles.forEach((isle, g) => {
@@ -238,7 +243,7 @@
       // the long-axis rule only holds close to the shape: leave from a corner, then go the short way
       const near = Math.sqrt(3 * l1 / isle.px.length) + 12;
       hn = 0;
-      for (const p of isle.px) { gen[p] = g; dist[p] = 0; from[p] = -1; push(0, p); }
+      for (const p of isle.px) { gen[p] = g; dist[p] = 0; glen[p] = 0; from[p] = -1; push(0, p); }
       let end = -1;
       while (hn) {
         const p = pop(), dp = dist[p];
@@ -247,15 +252,17 @@
         for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
           if ((!dx && !dy) || x + dx < 0 || x + dx >= w || y + dy < 0 || y + dy >= h) continue;
           const q = p + dy * w + dx, len = dx && dy ? 1.414 : 1;
-          let c = 0;
+          let c = 0, gl = glen[p];
           if (!m[q]) {
             const u = Math.max(0, tone[q] - t) / (1 - t);
+            // bridges only run through shadow, and only a short way; otherwise the piece stays loose
+            if (u > STENCIL.bridgeTone || (gl += len) > maxLen) continue;
             const vx = x + dx - cx, vy = y + dy - cy, r = Math.hypot(vx, vy) || 1;
             const across = r < near ? Math.abs(vx * ay - vy * ax) / r : 0;   // 0 = along the long axis, 1 = straight across
             c = len * (0.15 + 10 * u * u + STENCIL.skinCost * skin[q] * u) * (1 + aniso * across);
           }
           const nd = dp + c;
-          if (gen[q] !== g || nd < dist[q]) { gen[q] = g; dist[q] = nd; from[q] = p; push(nd, q); }
+          if (gen[q] !== g || nd < dist[q]) { gen[q] = g; dist[q] = nd; glen[q] = gl; from[q] = p; push(nd, q); }
         }
       }
       if (end < 0) return;
@@ -283,12 +290,10 @@
     }
   }
 
-  // no part of the stencil thinner than `width` px: find the centre line of each thin stroke
-  // (local maxima of the distance to the nearest hole) and redraw it at the minimum width
-  function thicken(m, w, h, width) {
-    const n = m.length, d = new Float32Array(n), r = width / 2, R = Math.ceil(r);
-    for (let p = 0; p < n; p++) d[p] = m[p] ? 1e9 : 0;
-    // two-pass chamfer distance (3-4), in pixels
+  // chamfer (3-4) distance from every pixel where m[p] === val to the nearest pixel that isn't; ×3 px
+  function chamfer(m, w, h, val) {
+    const n = m.length, d = new Float32Array(n);
+    for (let p = 0; p < n; p++) d[p] = m[p] === val ? 1e9 : 0;
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
       const p = y * w + x; if (!d[p]) continue;
       let v = d[p];
@@ -303,19 +308,78 @@
       if (y < h - 1) { v = Math.min(v, d[p + w] + 3); if (x < w - 1) v = Math.min(v, d[p + w + 1] + 4); if (x > 0) v = Math.min(v, d[p + w - 1] + 4); }
       d[p] = v;
     }
+    return d;
+  }
+
+  // dark strokes thinner than `width` px: find them as what a disk of that width can't reach
+  function thinParts(m, w, h, width) {
+    const n = m.length, d = chamfer(m, w, h, 1), r = width / 2, R = Math.ceil(r), covered = new Uint8Array(n);
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+      const p = y * w + x;
+      if (d[p] / 3 < r) continue;
+      // only the rim of the thick part needs stamping; its inside is covered anyway
+      if (d[p - 1] / 3 >= r && d[p + 1] / 3 >= r && d[p - w] / 3 >= r && d[p + w] / 3 >= r) { covered[p] = 1; continue; }
+      for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+        const xx = x + dx, yy = y + dy;
+        if (xx >= 0 && yy >= 0 && xx < w && yy < h && dx * dx + dy * dy <= r * r) covered[yy * w + xx] = 1;
+      }
+    }
+    const thin = new Uint8Array(n);
+    for (let p = 0; p < n; p++) thin[p] = m[p] && !covered[p] ? 1 : 0;
+    return { thin, d };
+  }
+
+  // long thin strokes lying on light skin (a stray hair across the cheek, a crease) read as
+  // scratches once cut, so they go; short ones (lash lines, nostril edges) stay and are thickened
+  function dropScratches(m, w, h, width, maxLen) {
+    const n = m.length, { thin, d } = thinParts(m, w, h, width), around = boxBlur(Float32Array.from(m), w, h, 8);
+    const seen = new Uint8Array(n), stack = new Int32Array(n), px = [];
+    for (let s = 0; s < n; s++) {
+      if (!thin[s] || seen[s]) continue;
+      let top = 0; stack[top++] = s; seen[s] = 1; px.length = 0;
+      let dsum = 0, dark = 0;
+      while (top) {
+        const p = stack[--top], x = p % w; px.push(p); dsum += d[p] / 3; dark += around[p];
+        for (const q of [x > 0 ? p - 1 : -1, x < w - 1 ? p + 1 : -1, p - w, p + w, x > 0 ? p - w - 1 : -1, x < w - 1 ? p - w + 1 : -1, x > 0 ? p + w - 1 : -1, x < w - 1 ? p + w + 1 : -1]) {
+          if (q >= 0 && q < n && thin[q] && !seen[q]) { seen[q] = 1; stack[top++] = q; }
+        }
+      }
+      const len = px.length / Math.max(1, 2 * dsum / px.length);
+      if (len > maxLen && dark / px.length < 0.4) for (const p of px) m[p] = 0;
+    }
+  }
+
+  // no part of the stencil thinner than `width` px: redraw the centre line of each thin stroke at
+  // that width, but never close a light gap narrower than `gap` px (eye whites, lid creases)
+  function thicken(m, w, h, width, gap) {
+    const n = m.length, d = chamfer(m, w, h, 1), L = chamfer(m, w, h, 0), r = width / 2, R = Math.ceil(r);
+    const G = Math.ceil(gap / 2) + 1, narrow = new Int8Array(n);   // 0 unknown, 1 narrow, -1 wide
+    const isNarrow = q => {
+      if (!narrow[q]) {
+        const qx = q % w, qy = (q / w) | 0; let mx = 0;
+        for (let dy = -G; dy <= G; dy++) for (let dx = -G; dx <= G; dx++) {
+          const x = qx + dx, y = qy + dy;
+          if (x >= 0 && y >= 0 && x < w && y < h) mx = Math.max(mx, L[y * w + x]);
+        }
+        narrow[q] = (2 * mx / 3) < gap ? 1 : -1;
+      }
+      return narrow[q] === 1;
+    };
     const ridge = [];
     for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
       const p = y * w + x, v = d[p];
       if (!v || v / 3 >= r) continue;
       if (v >= d[p - 1] && v >= d[p + 1] && v >= d[p - w] && v >= d[p + w] && v >= d[p - w - 1] && v >= d[p - w + 1] && v >= d[p + w - 1] && v >= d[p + w + 1]) ridge.push(p);
     }
+    const add = [];
     for (const p of ridge) {
       const cx = p % w, cy = (p / w) | 0;
       for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
-        const x = cx + dx, y = cy + dy;
-        if (x >= 0 && y >= 0 && x < w && y < h && dx * dx + dy * dy <= r * r) m[y * w + x] = 1;
+        const x = cx + dx, y = cy + dy, q = y * w + x;
+        if (x >= 0 && y >= 0 && x < w && y < h && dx * dx + dy * dy <= r * r && !m[q] && !isNarrow(q)) add.push(q);
       }
     }
+    for (const q of add) m[q] = 1;
   }
 
   // photo canvas → binary mask (1 = dark / blue / cut), at working resolution
@@ -355,10 +419,12 @@
       const f = boxBlur(Float32Array.from(m), w, h, STENCIL.majority);
       for (let p = 0; p < n; p++) m[p] = f[p] > 0.5 ? 1 : 0;
     }
+    const mm = w / STENCIL.photoMm;
     dropIslands(m, w, h, 0, Math.round(n * STENCIL.minArea));
+    dropScratches(m, w, h, STENCIL.minLineMm * mm, STENCIL.scratchMm * mm);
     dropIslands(m, w, h, 1, Math.round(n * STENCIL.minPiece));
-    bridgeIslands(m, w, h, B, t, gauss(S, w, h, 2), STENCIL.bridgeMm * w / STENCIL.photoMm);
-    thicken(m, w, h, STENCIL.minLineMm * w / STENCIL.photoMm);
+    bridgeIslands(m, w, h, B, t, gauss(S, w, h, 2), STENCIL.bridgeMm * mm);
+    thicken(m, w, h, STENCIL.minLineMm * mm, STENCIL.minGapMm * mm);
     return { m, w, h };
   }
 
