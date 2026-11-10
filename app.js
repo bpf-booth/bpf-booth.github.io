@@ -67,6 +67,7 @@
   }
 
   // running-sum box blur, horizontal then vertical; three in a row ≈ a gaussian
+  let colAcc = new Float64Array(0);
   function boxBlur(a, w, h, r, t = new Float32Array(a.length), o = new Float32Array(a.length)) {
     const k = 1 / (r * 2 + 1);
     for (let y = 0; y < h; y++) {
@@ -77,13 +78,13 @@
         s += a[row + Math.min(w - 1, x + r + 1)] - a[row + Math.max(0, x - r)];
       }
     }
-    for (let x = 0; x < w; x++) {
-      let s = 0;
-      for (let y = -r; y <= r; y++) s += t[Math.min(h - 1, Math.max(0, y)) * w + x];
-      for (let y = 0; y < h; y++) {
-        o[y * w + x] = s * k;
-        s += t[Math.min(h - 1, y + r + 1) * w + x] - t[Math.max(0, y - r) * w + x];
-      }
+    // vertical pass row by row (one running sum per column), which keeps memory access in order
+    const acc = colAcc.length >= w ? colAcc : (colAcc = new Float64Array(w));
+    acc.fill(0, 0, w);
+    for (let y = -r; y <= r; y++) { const row = Math.min(h - 1, Math.max(0, y)) * w; for (let x = 0; x < w; x++) acc[x] += t[row + x]; }
+    for (let y = 0; y < h; y++) {
+      const orow = y * w, add = Math.min(h - 1, y + r + 1) * w, sub = Math.max(0, y - r) * w;
+      for (let x = 0; x < w; x++) { o[orow + x] = acc[x] * k; acc[x] += t[add + x] - t[sub + x]; }
     }
     return o;
   }
@@ -128,8 +129,8 @@
   }
 
   /* ───────────── stencil: a clean two-tone print you could laser-cut ───────────── */
-  // dark (blue / black) is the stencil sheet, held together by the frame; light (pink / white) is
-  // cut away, and that is where the acid goes on, so it blooms pink in the tea
+  // dark features (eyes, brows, nostrils, lips, hair) are cut out of one card-stock sheet; the acid is
+  // brushed through those holes, so in the tea they bloom pink while the rest of the card turns blue
   const STENCIL = {
     work: 720,        // working width; all sizes below are in these pixels
     blur: 1,          // pre-threshold blur (3 box passes); bigger = rounder, simpler shapes
@@ -158,6 +159,23 @@
     skinCost: 12,     // extra cost for bridging across lit skin, so bridges keep to hair and shadow
     photoMm: 64,      // printed width of the photo on the 6 × 4 in card, to convert mm → px
     edge: 1,          // contour smoothing when scaling up, in working pixels
+    // with face landmarks
+    skinShrink: 0.9,  // the clean-skin zone is the face oval scaled by this toward its centre
+    skinDark: 0.6,    // on skin only pixels darker than Otsu × this are cut (hair across the face)
+    eyeBias: 0,       // per-feature threshold shifts; + cuts more of that feature
+    browBias: 0.02,
+    noseBias: -0.12,  // only the darkest part of the nose: nostrils and the shadow under the tip
+    lipBias: 0,
+    lipRed: 2.5,      // how much a lip's redness counts as darkness (lips are colour, not shadow)
+    bridgeGrow: 0.35, // big sheet islands (the face inside the hair) may use longer bridges
+    bridgeWiden: 4,   // ...and wider ones, up to this × bridgeMm, so the face hangs on a broad band
+    massBlur: 3,      // outside the face: blur before the single threshold (bigger = calmer shapes)
+    bodyR: 24,        // body (person mask, outside the face): shading is measured against this neighborhood
+    bodyShade: 0.1,   // ...and cut where it is this much darker: neck shadow, collar, folds. Lower = more
+    outlineMm: 1.1,   // width of the outline along the body's silhouette (0 = none)
+    massBias: 0,      // outside the face: + cuts more. Only the darkest of three tones is cut, so a
+                      // mid-grey wall stays sheet while hair and dark clothes become holes
+    sheetLooseMin: 0.003, // sheet islands this small that can't be bridged are cut away instead
   };
 
   // threshold that best splits the histogram into two groups
@@ -172,6 +190,19 @@
       if (v > best) { best = v; t = i; }
     }
     return t / 255;
+  }
+
+  // two thresholds that best split the histogram into three groups (dark / mid / light)
+  function otsu3(hist, total) {
+    const P = new Float64Array(257), S = new Float64Array(257);
+    for (let i = 0; i < 256; i++) { P[i + 1] = P[i] + hist[i]; S[i + 1] = S[i] + i * hist[i]; }
+    const cls = (a, b) => { const w = P[b] - P[a]; return w ? (S[b] - S[a]) ** 2 / w : 0; };
+    let best = -1, t1 = 85, t2 = 170;
+    for (let a = 1; a < 255; a++) for (let b = a + 1; b < 256; b++) {
+      const v = cls(0, a) + cls(a, b) + cls(b, 256);
+      if (v > best) { best = v; t1 = a; t2 = b; }
+    }
+    return [t1 / 255, t2 / 255];
   }
 
   // flip every 4-connected region of `val` smaller than `min` pixels
@@ -197,7 +228,7 @@
   //    shadows and hair instead of crossing cheeks or chin;
   //  - leaving across an elongated island's long axis costs extra, so lips continue out of the
   //    mouth corners and eyes out of their corners, rather than hanging down like a moustache.
-  function bridgeIslands(m, w, h, tone, t, skin, bw) {
+  function bridgeIslands(m, w, h, tone, t, skin, bw, opt = {}) {
     const n = m.length, comp = new Int32Array(n).fill(-1), stack = new Int32Array(n), held = [], isles = [];
     for (let s = 0; s < n; s++) {
       if (!m[s] || comp[s] >= 0) continue;
@@ -211,7 +242,7 @@
       held.push(edge ? 1 : 0);
       if (!edge) isles.push({ id, px });
     }
-    if (!isles.length) return;
+    if (!isles.length) return [];
     // binary heap of (cost, pixel)
     let hk = new Float32Array(1 << 16), hv = new Int32Array(1 << 16), hn = 0;
     const push = (k, v) => {
@@ -226,11 +257,14 @@
       hk[i] = k; hv[i] = last; return v;
     };
     const dist = new Float32Array(n), glen = new Float32Array(n), from = new Int32Array(n), gen = new Int32Array(n);
-    const maxLen = STENCIL.maxBridgeMm * w / STENCIL.photoMm;
+    const baseLen = STENCIL.maxBridgeMm * w / STENCIL.photoMm, limit = opt.limit ?? STENCIL.bridgeTone;
+    const looseMax = opt.looseMax ?? STENCIL.looseMax, grow = opt.growLen ?? 0;
+    const costBase = opt.costBase ?? 0.15, costTone = opt.costTone ?? 10;
     const paths = [];
     isles.sort((a, b) => b.px.length - a.px.length);
     isles.forEach((isle, g) => {
-      if (held[isle.id] || isle.px.length < STENCIL.looseMax * n) return;
+      if (held[isle.id] || isle.px.length < looseMax * n) return;
+      const maxLen = baseLen + grow * Math.sqrt(isle.px.length);   // bigger pieces may reach further
       g += 1;
       // shape of the island: centre and long axis (principal component)
       let cx = 0, cy = 0, sxx = 0, syy = 0, sxy = 0;
@@ -256,10 +290,10 @@
           if (!m[q]) {
             const u = Math.max(0, tone[q] - t) / (1 - t);
             // bridges only run through shadow, and only a short way; otherwise the piece stays loose
-            if (u > STENCIL.bridgeTone || (gl += len) > maxLen) continue;
+            if (u > limit || (gl += len) > maxLen) continue;
             const vx = x + dx - cx, vy = y + dy - cy, r = Math.hypot(vx, vy) || 1;
             const across = r < near ? Math.abs(vx * ay - vy * ax) / r : 0;   // 0 = along the long axis, 1 = straight across
-            c = len * (0.15 + 10 * u * u + STENCIL.skinCost * skin[q] * u) * (1 + aniso * across);
+            c = len * (costBase + costTone * u * u + STENCIL.skinCost * skin[q] * u) * (1 + aniso * across);
           }
           const nd = dp + c;
           if (gen[q] !== g || nd < dist[q]) { gen[q] = g; dist[q] = nd; glen[q] = gl; from[q] = p; push(nd, q); }
@@ -272,11 +306,11 @@
         else if (comp[k] >= 0) held[comp[k]] = 1;   // islands the path ran through are held now too
       }
       held[isle.id] = 1;
-      paths.push(path);
+      paths.push({ path, bw: bw * Math.min(opt.widen ?? 1, Math.max(1, Math.sqrt(isle.px.length) / 60)) });
     });
     // draw each bridge as a smoothed curve of disks
-    const r = Math.max(1, bw / 2), R = Math.ceil(r);
-    for (const path of paths) {
+    for (const { path, bw: pw } of paths) {
+      const r = Math.max(1, pw / 2), R = Math.ceil(r);
       let pts = path.map(p => [p % w, (p / w) | 0]);
       for (let k = 0; k < 3; k++) pts = pts.map((pt, i) => {
         if (!i || i === pts.length - 1) return pt;
@@ -288,6 +322,7 @@
         if (x >= 0 && y >= 0 && x < w && y < h && (x - cx) ** 2 + (y - cy) ** 2 <= r * r) m[y * w + x] = 1;
       }
     }
+    return isles.filter(isle => !held[isle.id]);
   }
 
   // chamfer (3-4) distance from every pixel where m[p] === val to the nearest pixel that isn't; ×3 px
@@ -331,7 +366,7 @@
 
   // long thin strokes lying on light skin (a stray hair across the cheek, a crease) read as
   // scratches once cut, so they go; short ones (lash lines, nostril edges) stay and are thickened
-  function dropScratches(m, w, h, width, maxLen) {
+  function dropScratches(m, w, h, width, maxLen, keep) {
     const n = m.length, { thin, d } = thinParts(m, w, h, width), around = boxBlur(Float32Array.from(m), w, h, 8);
     const seen = new Uint8Array(n), stack = new Int32Array(n), px = [];
     for (let s = 0; s < n; s++) {
@@ -345,7 +380,7 @@
         }
       }
       const len = px.length / Math.max(1, 2 * dsum / px.length);
-      if (len > maxLen && dark / px.length < 0.4) for (const p of px) m[p] = 0;
+      if (len > maxLen && dark / px.length < 0.4 && !(keep && px.some(p => keep[p]))) for (const p of px) m[p] = 0;
     }
   }
 
@@ -382,55 +417,169 @@
     for (const q of add) m[q] = 1;
   }
 
-  // photo canvas → binary mask (1 = dark / blue / cut), at working resolution
-  function stencilMask(photo) {
+  /* ───────────── face landmarks (MediaPipe, loaded on demand; the booth works without it) ───────────── */
+  const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+  const MP_MODEL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
+  const MP_SEG = 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/1/selfie_segmenter.tflite';
+  let faceModel = null;
+  function loadFaceModel() {
+    if (!faceModel) faceModel = (async () => {
+      const { FaceLandmarker, ImageSegmenter, FilesetResolver } = await import(`${MP}/vision_bundle.mjs`);
+      const files = await FilesetResolver.forVisionTasks(`${MP}/wasm`);
+      const [landmarks, person] = await Promise.all([
+        FaceLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: MP_MODEL, delegate: 'CPU' }, runningMode: 'IMAGE', numFaces: 1 }),
+        ImageSegmenter.createFromOptions(files, { baseOptions: { modelAssetPath: MP_SEG, delegate: 'CPU' }, runningMode: 'IMAGE', outputCategoryMask: false, outputConfidenceMasks: true }).catch(() => null),
+      ]);
+      return { landmarks, person };
+    })().catch(err => { console.warn('face landmarks unavailable, using the plain stencil', err); return null; });
+    return faceModel;
+  }
+  // face landmarks plus a person mask (how likely each pixel is the sitter, not the background)
+  async function detectFace(canvas) {
+    const mp = await Promise.race([loadFaceModel(), wait(6000).then(() => null)]);
+    if (!mp) return null;
+    let face = null, person = null;
+    try { face = mp.landmarks.detect(canvas).faceLandmarks?.[0] || null; } catch { /* no face */ }
+    try {
+      const r = mp.person?.segment(canvas), mk0 = r?.confidenceMasks?.[r.confidenceMasks.length - 1];
+      if (mk0) person = { data: Float32Array.from(mk0.getAsFloat32Array()), w: mk0.width, h: mk0.height };
+      r?.close?.();
+    } catch { /* no mask */ }
+    return face ? Object.assign(face, { person }) : null;
+  }
+  // MediaPipe face-mesh indices for each feature outline
+  const FACE = {
+    oval: [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109],
+    eyeR: [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246],
+    eyeL: [263, 249, 390, 373, 374, 380, 381, 382, 362, 398, 384, 385, 386, 387, 388, 466],
+    browR: [46, 53, 52, 65, 55, 70, 63, 105, 66, 107],
+    browL: [276, 283, 282, 295, 285, 300, 293, 334, 296, 336],
+    nose: [2, 97, 98, 64, 48, 115, 220, 45, 4, 275, 440, 344, 278, 294, 327, 326],
+    lips: [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 409, 270, 269, 267, 0, 37, 39, 40, 185],
+  };
+  // fill a polygon (grown by `grow` px) into a w × h mask
+  function polyMask(pts, w, h, grow) {
+    const c = mk(w, h), x = c.getContext('2d', { willReadFrequently: true });
+    x.fillStyle = x.strokeStyle = '#fff'; x.lineJoin = 'round'; x.lineWidth = grow * 2;
+    x.beginPath(); pts.forEach(([px, py], i) => (i ? x.lineTo(px, py) : x.moveTo(px, py))); x.closePath(); x.fill();
+    if (grow > 0) x.stroke();
+    const d = x.getImageData(0, 0, w, h).data, m = new Uint8Array(w * h);
+    for (let p = 0; p < m.length; p++) m[p] = d[p * 4 + 3] > 127 ? 1 : 0;
+    return m;
+  }
+  const hull = pts => {   // convex hull (monotone chain)
+    const P = [...pts].sort((a, b) => a[0] - b[0] || a[1] - b[1]), cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+    const lo = [], up = [];
+    for (const p of P) { while (lo.length > 1 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+    for (const p of P.reverse()) { while (up.length > 1 && cr(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+    return lo.slice(0, -1).concat(up.slice(0, -1));
+  };
+
+  // photo canvas (+ optional face landmarks) → binary mask at working resolution.
+  // 1 = hole: cut out of the sheet, acid is brushed through it, it blooms pink.
+  // 0 = sheet: the card stock that stays, held together as one piece.
+  // With landmarks, the skin is left clean and only the features are cut, each with its own
+  // threshold: eyes (iris, lash line), brows, nostrils, lips. Hair and dark background are cut too.
+  function stencilMask(photo, face) {
     const w = STENCIL.work, h = Math.round(w * photo.height / photo.width), n = w * h;
     const c = mk(w, h), cx = c.getContext('2d', { willReadFrequently: true });
     cx.imageSmoothingQuality = 'high'; cx.drawImage(photo, 0, 0, w, h);
-    const d = cx.getImageData(0, 0, w, h).data, L = new Float32Array(n), S = new Float32Array(n);
+    const d = cx.getImageData(0, 0, w, h).data, L = new Float32Array(n), Red = new Float32Array(n);
     for (let p = 0, i = 0; p < n; p++, i += 4) {
-      const r = d[i], g = d[i + 1], b = d[i + 2];
-      L[p] = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-      S[p] = r > 95 && g > 40 && b > 20 && r > g && r > b && r - g > 15 ? 1 : 0;
+      L[p] = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255;
+      Red[p] = Math.max(0, d[i] - (d[i + 1] + d[i + 2]) / 2) / 255;   // lips are redder than skin
     }
-    // stretch contrast between the 1st and 99th percentile, then blur
+    // stretch contrast between the 1st and 99th percentile
     const raw = new Uint32Array(256); for (let p = 0; p < n; p++) raw[(L[p] * 255) | 0]++;
     let lo = 0, hi = 255, acc = 0;
     while (lo < 255 && (acc += raw[lo]) < n * 0.01) lo++;
     acc = 0; while (hi > 0 && (acc += raw[hi]) < n * 0.01) hi--;
     const span = Math.max(1, hi - lo) / 255, base = lo / 255;
     for (let p = 0; p < n; p++) L[p] = Math.min(1, Math.max(0, (L[p] - base) / span));
-    const B = gauss(L, w, h, STENCIL.blur), M = gauss(B, w, h, STENCIL.local), F = gauss(B, w, h, STENCIL.fineR), hist = new Uint32Array(256);
-    // local contrast: push each pixel away from its neighborhood so features survive the threshold.
-    // Two scales: eye sockets, brows and lips, then the fine pass for lids, irises and catchlights.
-    for (let p = 0; p < n; p++) B[p] = Math.min(1, Math.max(0, B[p] + (B[p] - M[p]) * STENCIL.detail + (B[p] - F[p]) * STENCIL.fine));
-    for (let p = 0; p < n; p++) hist[Math.min(255, (B[p] * 255) | 0)]++;
-    const t = otsu(hist, n) + STENCIL.bias;
-    // mix the global cut with the local brightness, so soft shading inside a lit face (cheek,
-    // under the eyes, beside the nose) becomes shapes, not just the hair/skin boundary
-    const A = gauss(B, w, h, STENCIL.adaptR), a = STENCIL.adapt;
+    const B = gauss(L, w, h, STENCIL.blur), Fn = gauss(B, w, h, STENCIL.fineR), M = gauss(B, w, h, STENCIL.local);
+    const E = new Float32Array(n), T = new Float32Array(n);
+    for (let p = 0; p < n; p++) {
+      E[p] = Math.min(1, Math.max(0, B[p] + (B[p] - Fn[p]) * STENCIL.fine));   // fine detail, for features
+      T[p] = Math.min(1, Math.max(0, E[p] + (B[p] - M[p]) * STENCIL.detail));  // + cheek-scale shading
+    }
+    const histOf = (arr, sel) => { const hh = new Uint32Array(256); let k = 0; for (let p = 0; p < n; p++) if (!sel || sel[p]) { hh[Math.min(255, (arr[p] * 255) | 0)]++; k++; } return [hh, k]; };
+    const t = otsu(...histOf(T)) + STENCIL.bias;
+    const A = gauss(T, w, h, STENCIL.adaptR), a = STENCIL.adapt;
     let m = new Uint8Array(n);
-    for (let p = 0; p < n; p++) m[p] = B[p] < (1 - a) * t + a * (A[p] - STENCIL.adaptOffset) ? 1 : 0;
-    // a dark frame round the edge: the stencil's border, which holds every piece that reaches it
-    for (let x = 0; x < w; x++) for (let k = 0; k < 3; k++) m[k * w + x] = m[(h - 1 - k) * w + x] = 1;
-    for (let y = 0; y < h; y++) for (let k = 0; k < 3; k++) m[y * w + k] = m[y * w + w - 1 - k] = 1;
+    for (let p = 0; p < n; p++) m[p] = T[p] < (1 - a) * t + a * (A[p] - STENCIL.adaptOffset) ? 1 : 0;
+
+    let keep = null;
+    if (face) {
+      const P = i => [face[i].x * w, face[i].y * h], pts = ids => ids.map(P);
+      const eyeW = Math.hypot(P(33)[0] - P(133)[0], P(33)[1] - P(133)[1]) || w * 0.06;
+      // skin: the face oval shrunk toward its centre, so the jaw and hairline keep their edge
+      const oval = pts(FACE.oval), ocx = oval.reduce((s, q) => s + q[0], 0) / oval.length, ocy = oval.reduce((s, q) => s + q[1], 0) / oval.length;
+      const skin = polyMask(oval.map(([x, y]) => [ocx + (x - ocx) * STENCIL.skinShrink, ocy + (y - ocy) * STENCIL.skinShrink]), w, h, 0);
+      const feats = [
+        [pts(FACE.eyeR), eyeW * 0.28, STENCIL.eyeBias], [pts(FACE.eyeL), eyeW * 0.28, STENCIL.eyeBias],
+        [hull(pts(FACE.browR)), eyeW * 0.12, STENCIL.browBias], [hull(pts(FACE.browL)), eyeW * 0.12, STENCIL.browBias],
+        [hull(pts(FACE.nose)), eyeW * 0.06, STENCIL.noseBias], [pts(FACE.lips), eyeW * 0.08, STENCIL.lipBias, true],
+      ].map(([poly, grow, bias, lips]) => ({ sel: polyMask(poly, w, h, grow), bias, lips }));
+      keep = new Uint8Array(n);
+      for (const f of feats) for (let p = 0; p < n; p++) keep[p] |= f.sel[p];
+      // skin stays sheet unless it is really dark (hair across the face); everything outside the
+      // face (hair, clothes, background) is one smooth threshold, so it cuts as large calm shapes
+      const tg = otsu(...histOf(B)), G = gauss(L, w, h, STENCIL.massBlur);
+      const out = new Uint8Array(n); for (let p = 0; p < n; p++) out[p] = skin[p] ? 0 : 1;
+      const tm = otsu3(...histOf(G, out))[0] + STENCIL.massBias;
+      // the person mask, at working resolution (1 everywhere if the segmenter didn't load)
+      const body = new Float32Array(n).fill(1), pm = face.person;
+      if (pm) for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) body[y * w + x] = pm.data[Math.min(pm.h - 1, (y * pm.h / h) | 0) * pm.w + Math.min(pm.w - 1, (x * pm.w / w) | 0)];
+      const A2 = gauss(T, w, h, STENCIL.bodyR);
+      for (let p = 0; p < n; p++) {
+        if (keep[p]) continue;
+        if (skin[p]) m[p] = B[p] < tg * STENCIL.skinDark ? 1 : 0;
+        else if (body[p] > 0.5) m[p] = G[p] < tm || T[p] < A2[p] - STENCIL.bodyShade ? 1 : 0;   // neck shadow, collar, folds
+        else m[p] = G[p] < tm ? 1 : 0;                                                     // background stays sheet
+      }
+      // a soft outline where the body meets the background, so light clothes on a light wall still read
+      if (pm && STENCIL.outlineMm > 0) {
+        const half = STENCIL.outlineMm * w / STENCIL.photoMm / 2, bm = new Uint8Array(n);
+        for (let p = 0; p < n; p++) bm[p] = body[p] > 0.5 ? 1 : 0;
+        const din = chamfer(bm, w, h, 1), dout = chamfer(bm, w, h, 0);
+        for (let p = 0; p < n; p++) if (!skin[p] && !keep[p] && (din[p] / 3 <= half && din[p] > 0 || dout[p] / 3 <= half && dout[p] > 0)) { m[p] = 1; keep[p] = 1; }
+      }
+      // each feature splits its own pixels into dark and light
+      for (const f of feats) {
+        let V = E;
+        if (f.lips) { V = new Float32Array(n); for (let p = 0; p < n; p++) V[p] = Math.max(0, E[p] - Red[p] * STENCIL.lipRed); }
+        const tf = otsu(...histOf(V, f.sel)) + f.bias;
+        for (let p = 0; p < n; p++) if (f.sel[p]) m[p] = V[p] < tf ? 1 : 0;
+      }
+    }
+    // a sheet border round the edge holds everything together
+    for (let x = 0; x < w; x++) for (let k = 0; k < 4; k++) m[k * w + x] = m[(h - 1 - k) * w + x] = 0;
+    for (let y = 0; y < h; y++) for (let k = 0; k < 4; k++) m[y * w + k] = m[y * w + w - 1 - k] = 0;
     // majority filter: smooths ragged contours and kills specks
     for (let k = 0; k < STENCIL.cleanPasses; k++) {
       const f = boxBlur(Float32Array.from(m), w, h, STENCIL.majority);
       for (let p = 0; p < n; p++) m[p] = f[p] > 0.5 ? 1 : 0;
     }
     const mm = w / STENCIL.photoMm;
-    dropIslands(m, w, h, 0, Math.round(n * STENCIL.minArea));
-    dropScratches(m, w, h, STENCIL.minLineMm * mm, STENCIL.scratchMm * mm);
-    dropIslands(m, w, h, 1, Math.round(n * STENCIL.minPiece));
-    bridgeIslands(m, w, h, B, t, gauss(S, w, h, 2), STENCIL.bridgeMm * mm);
-    thicken(m, w, h, STENCIL.minLineMm * mm, STENCIL.minGapMm * mm);
-    return { m, w, h };
+    dropIslands(m, w, h, 1, Math.round(n * STENCIL.minPiece));             // tiny holes: leave as sheet
+    dropScratches(m, w, h, STENCIL.minLineMm * mm, STENCIL.scratchMm * mm, keep);   // creases, stray hairs
+    dropIslands(m, w, h, 0, Math.round(n * STENCIL.minArea));              // tiny sheet specks: cut away
+    // sheet islands inside holes (eye whites, hair highlights, the face inside the hair) get bridges
+    // through the holes' lightest parts, so the sheet stays one piece
+    const inv = new Uint8Array(n), tone = new Float32Array(n), zero = new Float32Array(n);
+    for (let p = 0; p < n; p++) { inv[p] = 1 - m[p]; tone[p] = 1 - B[p]; }
+    const tB = otsu(...histOf(B));
+    const loose = bridgeIslands(inv, w, h, tone, 1 - tB, zero, STENCIL.bridgeMm * mm, { limit: 1, looseMax: 0, growLen: STENCIL.bridgeGrow, costBase: 1, costTone: 1.5, widen: STENCIL.bridgeWiden });
+    for (const isle of loose) if (isle.px.length < n * STENCIL.sheetLooseMin) for (const p of isle.px) inv[p] = 0;
+    // sheet at least minLine wide; holes narrower than minGap (lash lines) are never closed
+    thicken(inv, w, h, STENCIL.minLineMm * mm, STENCIL.minGapMm * mm);
+    for (let p = 0; p < n; p++) m[p] = 1 - inv[p];
+    return { m, w, h, face: !!face };
   }
 
   // mask → W × H canvas in two colours. Scaled up smoothly, blurred and re-thresholded so
   // the contours are round curves rather than stair steps. aa = soft edge (screen) or hard (cutter).
-  function renderStencil({ m, w, h }, W, H, dark, light, aa) {
+  function stencilField({ m, w, h }, W, H, aa) {
     const small = mk(w, h), sc = small.getContext('2d'), id = sc.createImageData(w, h);
     for (let p = 0; p < m.length; p++) { const v = m[p] ? 0 : 255; id.data[p * 4] = id.data[p * 4 + 1] = id.data[p * 4 + 2] = v; id.data[p * 4 + 3] = 255; }
     sc.putImageData(id, 0, 0);
@@ -439,13 +588,18 @@
     const img = oc.getImageData(0, 0, W, H), d = img.data, f = new Float32Array(W * H);
     for (let p = 0; p < f.length; p++) f[p] = d[p * 4] / 255;
     const F = gauss(f, W, H, Math.max(1, Math.round(STENCIL.edge * W / w)));
-    const e = aa ? 0.08 : 0;
     if (!aa) {   // hard edge for the cutter: clear the odd pixel speck the scaling leaves behind
       const bin = new Uint8Array(F.length);
       for (let p = 0; p < F.length; p++) bin[p] = F[p] >= 0.5 ? 0 : 1;
       dropIslands(bin, W, H, 0, 64); dropIslands(bin, W, H, 1, 64);
-      for (let p = 0; p < F.length; p++) F[p] = 1 - bin[p];
+      // keep the smooth value at the edges, so traced contours stay round
+      for (let p = 0; p < F.length; p++) if ((F[p] >= 0.5 ? 0 : 1) !== bin[p]) F[p] = 1 - bin[p];
     }
+    return F;
+  }
+  function renderStencil(mask, W, H, dark, light, aa) {
+    const F = stencilField(mask, W, H, aa), out = mk(W, H), oc = out.getContext('2d');
+    const img = oc.createImageData(W, H), d = img.data, e = aa ? 0.08 : 0;
     for (let p = 0, i = 0; p < F.length; p++, i += 4) {
       const a = aa ? Math.min(1, Math.max(0, (F[p] - 0.5 + e) / (2 * e))) : F[p] >= 0.5 ? 1 : 0;   // 1 = light
       for (let c = 0; c < 4; c++) d[i + c] = (dark[c] ?? 255) + ((light[c] ?? 255) - (dark[c] ?? 255)) * a;
@@ -453,6 +607,102 @@
     oc.putImageData(img, 0, 0);
     return out;
   }
+  /* ───────────── laser file: the cut lines as vectors ───────────── */
+  // trace every edge between sheet and hole (marching squares on the same field as the PNG)
+  function traceField(F, W, H) {
+    const id = (x, y, side) => (y * W + x) * 2 + side;   // side 0 = top edge of a cell, 1 = left edge
+    const a1 = new Int32Array(W * H * 2).fill(-1), a2 = new Int32Array(W * H * 2).fill(-1), px = new Float32Array(W * H * 4);
+    const pt = (e, x0, y0, x1, y1) => {
+      const v0 = F[y0 * W + x0], v1 = F[y1 * W + x1], f = (0.5 - v0) / ((v1 - v0) || 1e-6);
+      px[e * 2] = x0 + (x1 - x0) * f; px[e * 2 + 1] = y0 + (y1 - y0) * f;
+    };
+    const seg = (e1, e2) => { (a1[e1] < 0 ? a1 : a2)[e1] = e2; (a1[e2] < 0 ? a1 : a2)[e2] = e1; };
+    for (let y = 0; y < H - 1; y++) for (let x = 0; x < W - 1; x++) {
+      const a = F[y * W + x] < 0.5, b = F[y * W + x + 1] < 0.5, c = F[(y + 1) * W + x + 1] < 0.5, d = F[(y + 1) * W + x] < 0.5;
+      const k = a | b << 1 | c << 2 | d << 3; if (!k || k === 15) continue;
+      const T = id(x, y, 0), Lf = id(x, y, 1), Bm = id(x, y + 1, 0), R = id(x + 1, y, 1);
+      if (a !== b) pt(T, x, y, x + 1, y);
+      if (a !== d) pt(Lf, x, y, x, y + 1);
+      if (d !== c) pt(Bm, x, y + 1, x + 1, y + 1);
+      if (b !== c) pt(R, x + 1, y, x + 1, y + 1);
+      const mid = (F[y * W + x] + F[y * W + x + 1] + F[(y + 1) * W + x + 1] + F[(y + 1) * W + x]) / 4 < 0.5;
+      switch (k) {
+        case 1: case 14: seg(Lf, T); break;
+        case 2: case 13: seg(T, R); break;
+        case 3: case 12: seg(Lf, R); break;
+        case 4: case 11: seg(R, Bm); break;
+        case 6: case 9: seg(T, Bm); break;
+        case 7: case 8: seg(Lf, Bm); break;
+        case 5: if (mid) { seg(T, R); seg(Bm, Lf); } else { seg(Lf, T); seg(R, Bm); } break;
+        case 10: if (mid) { seg(Lf, T); seg(R, Bm); } else { seg(T, R); seg(Bm, Lf); } break;
+      }
+    }
+    const seen = new Uint8Array(a1.length), loops = [];
+    for (let s0 = 0; s0 < a1.length; s0++) {
+      if (a1[s0] < 0 || seen[s0]) continue;
+      const loop = []; let prev = -1, cur = s0;
+      while (!seen[cur]) {
+        seen[cur] = 1; loop.push([px[cur * 2], px[cur * 2 + 1]]);
+        const nx = a1[cur] !== prev ? a1[cur] : a2[cur]; prev = cur; cur = nx;
+        if (cur < 0) break;
+      }
+      if (loop.length > 3) loops.push(loop);
+    }
+    return loops;
+  }
+  // Douglas–Peucker on a closed loop
+  function simplify(pts, tol) {
+    if (pts.length < 8) return pts;
+    const keep = new Uint8Array(pts.length); keep[0] = keep[pts.length - 1] = 1;
+    const st = [[0, pts.length - 1]];
+    while (st.length) {
+      const [i0, i1] = st.pop(), [x0, y0] = pts[i0], [x1, y1] = pts[i1], dx = x1 - x0, dy = y1 - y0, l = Math.hypot(dx, dy) || 1;
+      let best = -1, bd = tol;
+      for (let i = i0 + 1; i < i1; i++) { const dd = Math.abs(dy * (pts[i][0] - x0) - dx * (pts[i][1] - y0)) / l; if (dd > bd) { bd = dd; best = i; } }
+      if (best > 0) { keep[best] = 1; st.push([i0, best], [best, i1]); }
+    }
+    return pts.filter((_, i) => keep[i]);
+  }
+  // cut paths in points (72 per inch) on the 6 × 4 in card: the card outline plus every hole edge
+  function cutPaths() {
+    const r = photoRect(), F = stencilField(state.mask, r.w, r.h, false), k = 72 / 300;
+    const loops = traceField(F, r.w, r.h).map(l => simplify(l, 0.35)).filter(l => {
+      let a = 0; for (let i = 0; i < l.length; i++) { const [x0, y0] = l[i], [x1, y1] = l[(i + 1) % l.length]; a += x0 * y1 - x1 * y0; }
+      return Math.abs(a) / 2 > 40;   // skip specks under ~0.1 mm²
+    });
+    return { W: PW * k, H: PH * k, loops: loops.map(l => l.map(([x, y]) => [(x + r.x) * k, (y + r.y) * k])) };
+  }
+  // Illustrator opens both. Stroke: pure RGB red, 0.001 in (0.072 pt), no fill: the usual laser cut line.
+  function cutSVG() {
+    const { W, H, loops } = cutPaths(), f = v => +v.toFixed(3);
+    const d = loops.map(l => 'M' + l.map(([x, y]) => `${f(x)} ${f(y)}`).join('L') + 'Z');
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="6in" height="4in" viewBox="0 0 ${W} ${H}">
+  <title>Pea Booth stencil ${state.no}: cut lines</title>
+  <g id="cut" fill="none" stroke="#FF0000" stroke-width="0.072" stroke-linejoin="round">
+    <rect x="0" y="0" width="${W}" height="${H}"/>
+${d.map(p => `    <path d="${p}"/>`).join('\n')}
+  </g>
+</svg>
+`;
+  }
+  function cutPDF() {
+    const { W, H, loops } = cutPaths(), f = v => v.toFixed(3);
+    let ops = `1 0 0 RG 0.072 w 1 j\n0 0 ${W} ${H} re\n`;
+    for (const l of loops) ops += l.map(([x, y], i) => `${f(x)} ${f(H - y)} ${i ? 'l' : 'm'}`).join('\n') + '\nh\n';
+    ops += 'S\n';
+    const objs = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << >> /Contents 4 0 R >>`,
+      `<< /Length ${ops.length} >>\nstream\n${ops}endstream`];
+    let out = '%PDF-1.4\n', offs = [];
+    objs.forEach((o, i) => { offs.push(out.length); out += `${i + 1} 0 obj\n${o}\nendobj\n`; });
+    const xref = out.length;
+    out += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n` + offs.map(o => String(o).padStart(10, '0') + ' 00000 n \n').join('');
+    out += `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+    return out;
+  }
+
+  const BLOOM_PINK = [224, 134, 182];   // where the acid went, as it reads after the soak
   const lutAt = (tone, v) => { const l = LUTS[tone], i = Math.round(v * 255) * 3; return [l[i], l[i + 1], l[i + 2]]; };
 
   // an uneven, hand-brushed rectangle with streaks off its edges
@@ -576,6 +826,7 @@
   function setMsg(html) { screenMsg.innerHTML = html; screenMsg.classList.toggle('hide', !html); }
 
   async function startCamera() {
+    loadFaceModel();   // warm up the face landmarks while the camera starts
     if (state.source && state.source.tagName === 'IMG') { loop(); return; }
     if (state.stream) { loop(); return; }
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -646,8 +897,8 @@
 
     const W = 960, H = 1200, cap = mk(W, H), cc = cap.getContext('2d', { willReadFrequently: true });
     drawCover(cc, state.source, W, H, state.mirror);
-    state.mask = stencilMask(cap);
-    state.print = makePrint(renderStencil(state.mask, W, H, lutAt(state.tone, 0.12), lutAt(state.tone, 0.9), true), state.tone);
+    state.mask = stencilMask(cap, await detectFace(cap));
+    state.print = makePrint(renderStencil(state.mask, W, H, BLOOM_PINK, lutAt(state.tone, 0.16), true), state.tone);
     state.printTone = state.tone;
 
     await wait(500);
@@ -805,7 +1056,7 @@
   // the acid portrait as it blooms: uneven watercolor pink that pools deeper at the edges and
   // thins to translucent in places, where the tea shows through as violet
   function watercolorStencil(mask, W, H) {
-    const cv = renderStencil(mask, W, H, [0, 0, 0, 0], [255, 255, 255, 255], true), c = cv.getContext('2d', { willReadFrequently: true });
+    const cv = renderStencil(mask, W, H, [255, 255, 255, 255], [0, 0, 0, 0], true), c = cv.getContext('2d', { willReadFrequently: true });
     const img = c.getImageData(0, 0, W, H), d = img.data, n = W * H, cov = new Float32Array(n);
     for (let p = 0; p < n; p++) cov[p] = d[p * 4 + 3] / 255;
     // one pink, laid on at varying opacity so the indigo tea softly shows through where it's thin;
@@ -829,7 +1080,7 @@
     const cv = mk(PW, PH), c = cv.getContext('2d'), wet = look === 'wash' || look === 'soaked';
     if (wet) teaWash(c); else paper(c);
     const r = photoRect();
-    const acid = { ghost: [[0, 0, 0, 0], [190, 178, 146, 20]], wash: [[0, 0, 0, 0], [120, 146, 214, 26]] }[look];
+    const acid = { ghost: [[190, 178, 146, 12], [0, 0, 0, 0]], wash: [[120, 146, 214, 26], [0, 0, 0, 0]] }[look];
     if (acid) c.drawImage(renderStencil(state.mask, r.w, r.h, acid[0], acid[1], true), r.x, r.y);
     if (look === 'soaked') c.drawImage(watercolorStencil(state.mask, r.w, r.h), r.x, r.y);
     const tone = state.printTone, ink = wet ? '#dfe7f5' : toneColor(tone, 0.22), soft = wet ? '#b9c8e8' : toneColor(tone, 0.45);
@@ -843,11 +1094,11 @@
     if (look === 'ink') regMarks(c);
     return cv;
   }
-  // the portrait's light areas, printed (or brushed through the stencil) in acidic ink
+  // the portrait's features, printed (or brushed through the stencil) in acidic ink
   function renderFrontAcid() {
     const cv = mk(PW, PH), c = cv.getContext('2d'); paper(c, true);
     const r = photoRect();
-    c.drawImage(renderStencil(state.mask, r.w, r.h, [255, 255, 255], [0, 0, 0], false), r.x, r.y);
+    c.drawImage(renderStencil(state.mask, r.w, r.h, [0, 0, 0], [255, 255, 255], false), r.x, r.y);
     regMarks(c);
     return cv;
   }
@@ -875,11 +1126,11 @@
     regMarks(c);
     return cv;
   }
-  // the laser-cut stencil, card-sized: black is the sheet that stays, white is cut away. Lay it on
-  // the front, edges flush, and brush the acid through the holes.
+  // the laser-cut stencil, card-sized: white is the sheet that stays, black is cut away. Lay it on
+  // the front, edges flush, and brush the acid through the holes. (Vectors: cutSVG / cutPDF.)
   function renderCut() {
     const cv = mk(PW, PH), c = cv.getContext('2d'), r = photoRect();
-    c.fillStyle = '#000'; c.fillRect(0, 0, PW, PH);
+    c.fillStyle = '#fff'; c.fillRect(0, 0, PW, PH);
     c.drawImage(renderStencil(state.mask, r.w, r.h, [0, 0, 0], [255, 255, 255], false), r.x, r.y);
     return cv;
   }
@@ -927,6 +1178,13 @@
       a.href = URL.createObjectURL(blob); a.download = `pea-booth-${state.no}-${names[k]}.png`;
       a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     }, 'image/png');
+  }));
+  $$('[data-vec]').forEach(b => b.addEventListener('click', () => {
+    if (!state.mask) return;
+    const svg = b.dataset.vec === 'svg', blob = new Blob([svg ? cutSVG() : cutPDF()], { type: svg ? 'image/svg+xml' : 'application/pdf' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = `pea-booth-${state.no}-stencil-cut.${svg ? 'svg' : 'pdf'}`;
+    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }));
   $('#printBtn').addEventListener('click', () => window.print());
   $('#againBtn').addEventListener('click', () => {
